@@ -36,12 +36,9 @@ export function NewCollections() {
                 <p className="font-sans font-light text-[0.88rem] leading-relaxed text-white mb-4">
                   Modern sterling silver designed to elevate every look.
                 </p>
-                <Link
-                  href="/collections"
-                  className="text-[0.72rem] font-sans font-light tracking-[0.2em] uppercase text-white border-b border-white/60 pb-px hover:border-white transition-colors duration-300"
-                >
+                <span className="text-[0.72rem] font-sans font-light tracking-[0.2em] uppercase text-white border-b border-white/60 pb-px">
                   Browse
-                </Link>
+                </span>
               </div>
             </Link>
           </FadeIn>
