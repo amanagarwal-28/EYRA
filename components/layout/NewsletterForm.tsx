@@ -5,7 +5,11 @@ import { ArrowRight } from "lucide-react";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export function NewsletterForm() {
+interface NewsletterFormProps {
+  variant?: "dark" | "light";
+}
+
+export function NewsletterForm({ variant = "dark" }: NewsletterFormProps) {
   const [status, setStatus] = useState<Status>("idle");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -26,15 +30,17 @@ export function NewsletterForm() {
 
   if (status === "success") {
     return (
-      <p className="text-[0.78rem] font-light tracking-[0.1em] text-silver py-3">
+      <p className="text-[0.78rem] font-light tracking-[0.1em] text-stone py-3">
         You&apos;re on the list — welcome to EYRA.
       </p>
     );
   }
 
+  const isDark = variant === "dark";
+
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="flex items-stretch max-w-xs">
+      <div className="flex items-stretch w-full">
         <label htmlFor="newsletter-email" className="sr-only">
           Email address
         </label>
@@ -45,13 +51,23 @@ export function NewsletterForm() {
           placeholder="Your email address"
           required
           disabled={status === "loading"}
-          className="flex-1 bg-transparent border border-stone text-white text-[0.8rem] font-light tracking-[0.04em] placeholder:text-stone px-4 py-3 focus:outline-none focus:border-silver transition-colors duration-200 disabled:opacity-50"
+          className={[
+            "flex-1 bg-transparent text-[0.8rem] font-light tracking-[0.04em] px-4 py-3 focus:outline-none transition-colors duration-200 disabled:opacity-50",
+            isDark
+              ? "border border-stone text-white placeholder:text-stone focus:border-silver"
+              : "border border-carbon text-jet placeholder:text-ash focus:border-jet",
+          ].join(" ")}
         />
         <button
           type="submit"
           aria-label="Subscribe to newsletter"
           disabled={status === "loading"}
-          className="border border-l-0 border-stone px-3.5 text-smoke hover:text-white hover:border-silver transition-colors duration-200 disabled:opacity-50"
+          className={[
+            "border border-l-0 px-3.5 transition-colors duration-200 disabled:opacity-50",
+            isDark
+              ? "border-stone text-smoke hover:text-white hover:border-silver"
+              : "border-carbon text-carbon hover:text-jet hover:border-jet",
+          ].join(" ")}
         >
           <ArrowRight size={15} strokeWidth={1.5} />
         </button>

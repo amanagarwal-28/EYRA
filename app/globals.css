@@ -53,3 +53,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Scroll-triggered fade animations ─────────────────── */
+/* Used by FadeIn component (js-driven class toggle) */
+.fade-hidden          { opacity: 0; transform: translateY(1.5rem); }
+.fade-hidden-left     { opacity: 0; transform: translateX(1.5rem); }
+.fade-visible         { opacity: 1; transform: translate(0, 0); }
+
+/* ── Carousel scrollbar hide ───────────────────────────── */
+.hide-scrollbar { scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
