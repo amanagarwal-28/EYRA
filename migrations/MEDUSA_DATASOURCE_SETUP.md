@@ -237,3 +237,290 @@ Each file must:
 ---
 
 *Last updated: 2026-06-06*
+
+---
+---
+
+# Production Database Configuration — Railway Handover Reference
+
+This section is a self-contained reference for the exact environment variables
+and CLI commands needed to wire the Medusa backend to the live Railway
+PostgreSQL instance. Copy the template blocks verbatim; replace only the
+bracketed placeholders.
+
+---
+
+## A · Environment variable template
+
+Paste the following into your **Railway Medusa service** environment panel
+(Settings → Variables → Raw Editor) and into your local `medusa-backend/.env`.
+Never commit populated values to version control.
+
+```env
+# ─────────────────────────────────────────────────────────────────────────────
+# A1. PRIMARY DATASOURCE
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Full PostgreSQL connection string.
+# Structure: postgresql://[user]:[password]@[host]:[port]/[db]
+#
+#   [user]     → Railway supplies this as PGUSER  (default: postgres)
+#   [password] → Railway supplies this as PGPASSWORD
+#   [host]     → Internal hostname, e.g. postgres.railway.internal
+#                Use the PUBLIC host (containers.railway.app) only for
+#                connections outside the Railway private network (e.g. local CLI)
+#   [port]     → Railway supplies this as PGPORT  (default: 5432)
+#   [db]       → Railway supplies this as PGDATABASE (default: railway)
+#
+# In Railway, set this as a Reference Variable so it auto-updates if the
+# Postgres service is redeployed:
+#   Value →  ${{Postgres.DATABASE_URL}}
+#
+DATABASE_URL=postgresql://[user]:[password]@[host]:[port]/[db]
+
+# Explicitly declares the database driver.
+# Medusa uses this to select the correct TypeORM dialect.
+# Must be exactly the string "postgres" — no variant spellings.
+DATABASE_TYPE=postgres
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A2. CONNECTION POOL THRESHOLDS
+# These are read by medusa-config.ts → databaseExtra and control how many
+# concurrent PostgreSQL connections Medusa keeps open against Railway.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Minimum connections held open in the pool at all times.
+# Set to 2 so the first request after idle doesn't pay a cold-connect penalty.
+DB_POOL_MIN=2
+
+# Maximum simultaneous connections in the pool.
+# Railway Hobby plan: PostgreSQL allows up to 100 max_connections by default.
+# Reserve headroom for Railway's own internal monitoring connections.
+# Recommended ceiling for a single Medusa instance: 20.
+# Scale up to 50 if running multiple Medusa replicas behind a load balancer.
+DB_POOL_MAX=20
+
+# Milliseconds an idle connection is kept alive before being released.
+# 30 s balances Railway's 60 s idle connection timeout with pool responsiveness.
+DB_POOL_IDLE_TIMEOUT=30000
+
+# Milliseconds Medusa waits to acquire a free connection before throwing.
+# 5 s covers typical traffic bursts without hanging end-user requests.
+DB_POOL_ACQUIRE_TIMEOUT=5000
+
+# Milliseconds before an individual SQL statement is forcibly cancelled.
+# Guards against runaway queries locking the pool during heavy checkout load.
+DB_STATEMENT_TIMEOUT=30000
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A3. MEDUSA RUNTIME SECRETS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Admin API token — created in Medusa Dashboard → Settings → API key management
+# Used by lib/medusa-customer.ts (GET /admin/customers, POST /admin/customers)
+MEDUSA_ADMIN_API_KEY=[admin_api_key]
+
+# JWT and cookie secrets — generate with: openssl rand -base64 48
+JWT_SECRET=[min_48_char_random_string]
+COOKIE_SECRET=[min_48_char_random_string]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A4. CORS ORIGINS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The Railway URL of your deployed Next.js storefront
+STORE_CORS=https://[your-nextjs-service].up.railway.app
+# The Railway URL (or custom domain) of your Medusa admin panel
+ADMIN_CORS=https://[your-admin-panel].up.railway.app
+AUTH_CORS=https://[your-nextjs-service].up.railway.app
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A5. RAZORPAY
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Public key — safe to expose to the browser (prefixed NEXT_PUBLIC_)
+NEXT_PUBLIC_RAZORPAY_KEY_ID=[rzp_live_xxxxxxxxxxxxxxxx]
+# Secret key — server-side only, never prefix with NEXT_PUBLIC_
+RAZORPAY_KEY_SECRET=[live_secret_key]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A6. CLERK
+# ─────────────────────────────────────────────────────────────────────────────
+
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=[pk_live_xxxxxxxxxxxxxxxx]
+CLERK_SECRET_KEY=[sk_live_xxxxxxxxxxxxxxxx]
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A7. MEDUSA BACKEND URL (read by Next.js storefront)
+# ─────────────────────────────────────────────────────────────────────────────
+
+NEXT_PUBLIC_MEDUSA_BACKEND_URL=https://[your-medusa-service].up.railway.app
+NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=[pub_key_from_medusa_dashboard]
+```
+
+---
+
+## B · `medusa-config.ts` — wiring the pool variables
+
+Update the datasource block in your Medusa backend to read all pool thresholds
+from environment variables so Railway can tune them without a redeploy:
+
+```typescript
+// medusa-config.ts  (Medusa backend repo root — not the Next.js frontend)
+import { defineConfig } from "@medusajs/framework/config";
+
+export default defineConfig({
+  projectConfig: {
+    // ── Primary datasource ──────────────────────────────────────────────────
+    // DATABASE_URL is the single source of truth. Railway injects it as a
+    // Reference Variable (${{Postgres.DATABASE_URL}}) at runtime.
+    databaseUrl: process.env.DATABASE_URL,
+
+    databaseDriverOptions:
+      process.env.NODE_ENV === "production"
+        ? { ssl: { rejectUnauthorized: false } }  // required by Railway TLS
+        : {},
+
+    // ── Connection pool thresholds ──────────────────────────────────────────
+    // All values read from env so they can be changed in Railway without
+    // touching source code or triggering a full rebuild.
+    databaseExtra: {
+      min:                parseInt(process.env.DB_POOL_MIN           ?? "2"),
+      max:                parseInt(process.env.DB_POOL_MAX           ?? "20"),
+      idleTimeoutMillis:  parseInt(process.env.DB_POOL_IDLE_TIMEOUT  ?? "30000"),
+      acquireTimeoutMillis: parseInt(process.env.DB_POOL_ACQUIRE_TIMEOUT ?? "5000"),
+      statement_timeout:  parseInt(process.env.DB_STATEMENT_TIMEOUT  ?? "30000"),
+    },
+
+    // ── HTTP / CORS ──────────────────────────────────────────────────────────
+    http: {
+      storeCors:    process.env.STORE_CORS    ?? "http://localhost:3000",
+      adminCors:    process.env.ADMIN_CORS    ?? "http://localhost:7001",
+      authCors:     process.env.AUTH_CORS     ?? "http://localhost:3000",
+      jwtSecret:    process.env.JWT_SECRET    ?? "supersecret",
+      cookieSecret: process.env.COOKIE_SECRET ?? "supersecret",
+    },
+  },
+});
+```
+
+> **Pool sizing guide**
+>
+> | Concurrent visitors | `DB_POOL_MAX` | Notes |
+> |---|---|---|
+> | < 500 / day | 10 | Railway Hobby — conserve connections |
+> | 500 – 5 000 / day | 20 | Default recommendation |
+> | 5 000 – 20 000 / day | 40 | Scale Medusa to 2 replicas, split pool |
+> | > 20 000 / day | 50 + PgBouncer | Add connection pooler in front of Railway Postgres |
+
+---
+
+## C · CLI — push local table structures to Railway
+
+Three approaches ordered by complexity. Use whichever matches your setup.
+
+### C1 · Railway CLI (recommended — no credentials in shell history)
+
+The Railway CLI authenticates via browser OAuth; credentials never touch your
+terminal or `.env` file.
+
+```bash
+# Install the Railway CLI once (globally)
+npm install --global @railway/cli
+
+# Authenticate via browser
+railway login
+
+# Link the CLI to your Railway project
+# Run from the project root; select the correct environment (production)
+railway link
+
+# Confirm the target database is reachable
+railway run psql --version
+
+# ── Run EYRA extension migration ──────────────────────────────────────────────
+railway run psql "$DATABASE_URL" \
+  --set ON_ERROR_STOP=1 \
+  -f migrations/init_jewelry_extensions.sql
+
+# Verify the migration was applied
+railway run psql "$DATABASE_URL" \
+  -c "SELECT version, applied_at FROM eyra_schema_migration ORDER BY applied_at;"
+
+# ── Run Medusa core migrations (from your Medusa backend directory) ───────────
+cd ../medusa-backend          # adjust path to your Medusa repo
+railway run npx medusa migrations run
+```
+
+### C2 · Direct psql with Railway public host (no CLI install needed)
+
+Use Railway's **public** connection string when connecting from outside the
+Railway private network (i.e. your local machine). Find it in:
+Railway Dashboard → Postgres service → Connect tab → Public URL.
+
+```bash
+# Export once for the session — never commit this value
+export RAILWAY_DB_URL="postgresql://postgres:[password]@[public-host].railway.app:[public-port]/railway"
+
+# Dry-run first: show all statements without executing
+psql "$RAILWAY_DB_URL" \
+  --set ON_ERROR_STOP=1 \
+  --echo-all \
+  --single-transaction \
+  --no-psqlrc \
+  -f migrations/init_jewelry_extensions.sql \
+  2>&1 | head -80   # preview first 80 lines
+
+# Execute for real
+psql "$RAILWAY_DB_URL" \
+  --set ON_ERROR_STOP=1 \
+  --single-transaction \
+  -f migrations/init_jewelry_extensions.sql
+
+# Confirm tables created
+psql "$RAILWAY_DB_URL" -c "\dt eyra_*"
+```
+
+> **`--single-transaction`** wraps the entire file in one transaction.
+> If any statement fails the whole migration rolls back — no partial state.
+> Matches the `BEGIN; … COMMIT;` already in the SQL file (nested transactions
+> are safe in PostgreSQL).
+
+### C3 · npm script shorthand (add to `package.json` for team convenience)
+
+```json
+// package.json  (Next.js storefront root)
+{
+  "scripts": {
+    "db:migrate:prod": "railway run psql \"$DATABASE_URL\" --set ON_ERROR_STOP=1 --single-transaction -f migrations/init_jewelry_extensions.sql",
+    "db:migrate:local": "psql \"$DATABASE_URL\" --set ON_ERROR_STOP=1 --single-transaction -f migrations/init_jewelry_extensions.sql",
+    "db:status": "railway run psql \"$DATABASE_URL\" -c \"SELECT version, applied_at FROM eyra_schema_migration ORDER BY applied_at;\""
+  }
+}
+```
+
+```bash
+# Push to Railway production
+npm run db:migrate:prod
+
+# Check what migrations have run
+npm run db:status
+```
+
+---
+
+## D · Post-push verification checklist
+
+After running the migration against the live Railway database, confirm the
+following before starting the Medusa server:
+
+- [ ] `\dt eyra_*` in psql lists all 7 extension tables
+- [ ] `SELECT version, applied_at FROM eyra_schema_migration;` returns `0001_init_jewelry_extensions`
+- [ ] `SELECT COUNT(*) FROM eyra_ring_size_chart;` returns **15**
+- [ ] `EXPLAIN SELECT * FROM eyra_order WHERE clerk_user_id = 'test';` shows `Index Scan` (not `Seq Scan`) — index is built even on an empty table
+- [ ] Railway service logs show no `FATAL: password authentication failed` or `SSL SYSCALL` errors after Medusa connects with `DATABASE_URL`
+- [ ] `SELECT current_setting('max_connections');` returns a value ≥ `DB_POOL_MAX + 5`
