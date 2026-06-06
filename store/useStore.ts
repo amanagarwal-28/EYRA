@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { Product } from "@/components/products/types";
 import type { CartTotals } from "@/lib/medusa-cart";
 
@@ -34,7 +35,9 @@ function itemKey(productId: string, size: number | null): string {
 /** Module-level debounce map for updateQuantity syncs. */
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-export const useCartStore = create<CartStore>()((set, get) => ({
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
   items: [],
   cartId: null,
   syncStatus: "idle",
@@ -74,13 +77,16 @@ export const useCartStore = create<CartStore>()((set, get) => ({
 
     (async () => {
       try {
-        const {
-          getOrCreateCartId,
-          addCartLineItem,
-        } = await import("@/lib/medusa-cart");
+        const { createCart, setStoredCartId, addCartLineItem } = await import("@/lib/medusa-cart");
 
-        const cartId = await getOrCreateCartId();
-        if (!cartId) { set({ syncStatus: "error" }); return; }
+        // Prefer the cartId already in the store (rehydrated by persist middleware).
+        // Only create a new cart when there genuinely isn't one.
+        let cartId = get().cartId;
+        if (!cartId) {
+          cartId = await createCart();
+          if (!cartId) { set({ syncStatus: "error" }); return; }
+          setStoredCartId(cartId); // keep eyra_cart_id in sync as a fallback
+        }
 
         const result = await addCartLineItem(cartId, variantId, 1);
         if (!result) { set({ syncStatus: "error" }); return; }
@@ -187,35 +193,48 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   async initCart() {
     if (typeof window === "undefined") return;
 
-    const { getStoredCartId, fetchCart } = await import("@/lib/medusa-cart");
-    const storedId = getStoredCartId();
-    if (!storedId) return;
+    // cartId is already rehydrated from localStorage by persist middleware.
+    // Use it directly; no need to read localStorage manually.
+    const cartId = get().cartId;
+    if (!cartId) return;
 
-    const fetched = await fetchCart(storedId);
+    const { fetchCart, clearStoredCartId } = await import("@/lib/medusa-cart");
+    const fetched = await fetchCart(cartId);
+
     if (!fetched) {
-      // Cart expired on server — clear the stale ID
-      const { clearStoredCartId } = await import("@/lib/medusa-cart");
+      // Cart expired on the server — clear stale state so the next addToCart
+      // creates a fresh cart rather than retrying a dead cartId.
       clearStoredCartId();
+      set({ cartId: null, items: [], serverTotals: null });
       return;
     }
 
-    set((state) => {
-      // Reconnect lineItemIds for any matching items already in Zustand state
-      const updatedItems = state.items.map((item) => {
+    // Reconnect server lineItemIds to the persisted items array.
+    // Items already in state (from localStorage) are preserved; we only
+    // patch in the lineItemId so subsequent quantity/remove syncs work.
+    set((state) => ({
+      serverTotals: fetched.totals,
+      items: state.items.map((item) => {
         const serverItem = fetched.lineItems.find(
           (li) => li.variantId === item.variantId
         );
         return serverItem ? { ...item, lineItemId: serverItem.id } : item;
-      });
-
-      return {
-        cartId: storedId,
-        serverTotals: fetched.totals,
-        items: updatedItems,
-      };
-    });
+      }),
+    }));
   },
-}));
+}),
+    {
+      name: "eyra-cart-storage",
+      storage: createJSONStorage(() => localStorage),
+      // Only persist the cart contents and backend cart ID.
+      // UI flags and server-computed totals are always derived fresh.
+      partialize: (state) => ({
+        items: state.items,
+        cartId: state.cartId,
+      }),
+    }
+  )
+);
 
 interface WishlistStore {
   items: Product[];
