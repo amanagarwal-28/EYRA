@@ -163,6 +163,8 @@ export function SupportClient() {
   });
   const [touched, setTouched] = useState<TouchedFields>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   /* Accordion state */
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -182,17 +184,38 @@ export function SupportClient() {
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setTouched({ name: true, email: true, category: true, message: true });
     if (!isValid) return;
-    setSubmitted(true);
+
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const res = await fetch("/api/support/ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+      } else {
+        const data = await res.json() as { error?: string };
+        setSubmitError(data.error ?? "Something went wrong. Please try again.");
+      }
+    } catch {
+      setSubmitError("Network error. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function handleReset() {
     setFields({ name: "", email: "", category: "", message: "" });
     setTouched({});
     setSubmitted(false);
+    setSubmitError("");
   }
 
   return (
@@ -329,12 +352,31 @@ export function SupportClient() {
                   </div>
                 </div>
 
+                {/* Server-side error */}
+                {submitError && (
+                  <div className="flex items-start gap-2 p-3.5 bg-[#FFF0F0] border border-[#FECACA] rounded-2xl">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="mt-0.5 flex-shrink-0" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" stroke="#D93025" strokeWidth="2" />
+                      <path d="M12 7v5M12 16.5v.5" stroke="#D93025" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <p className="font-sans text-[13px] text-[#B91C1C] leading-[18px]">{submitError}</p>
+                  </div>
+                )}
+
                 {/* Submit */}
                 <button
                   type="submit"
-                  className="w-full h-[52px] bg-black text-white font-sans font-medium text-[18px] leading-[20px] rounded-full shadow-[inset_0px_6px_10px_rgba(211,211,211,0.3)] hover:bg-[#1a1a1a] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={submitting}
+                  className="w-full h-[52px] bg-black text-white font-sans font-medium text-[18px] leading-[20px] rounded-full shadow-[inset_0px_6px_10px_rgba(211,211,211,0.3)] hover:bg-[#1a1a1a] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Submit Request
+                  {submitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Sending…
+                    </>
+                  ) : (
+                    "Submit Request"
+                  )}
                 </button>
               </form>
             )}

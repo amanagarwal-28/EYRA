@@ -17,6 +17,7 @@ interface CartStore {
   items: CartItem[];
   cartId: string | null;
   syncStatus: "idle" | "syncing" | "error";
+  syncError: string | null;
   serverTotals: CartTotals | null;
 
   addToCart: (product: Product, size?: number | null, variantId?: string) => void;
@@ -24,6 +25,7 @@ interface CartStore {
   updateQuantity: (productId: string, size: number | null, qty: number) => void;
   clearCart: () => void;
   cartTotal: () => number;
+  clearSyncError: () => void;
   setCartId: (id: string) => void;
   initCart: () => Promise<void>;
 }
@@ -41,10 +43,15 @@ export const useCartStore = create<CartStore>()(
   items: [],
   cartId: null,
   syncStatus: "idle",
+  syncError: null,
   serverTotals: null,
 
   setCartId(id) {
     set({ cartId: id });
+  },
+
+  clearSyncError() {
+    set({ syncError: null, syncStatus: "idle" });
   },
 
   addToCart(product, size = null, variantId) {
@@ -89,11 +96,15 @@ export const useCartStore = create<CartStore>()(
         }
 
         const result = await addCartLineItem(cartId, variantId, 1);
-        if (!result) { set({ syncStatus: "error" }); return; }
+        if (!result) {
+          set({ syncStatus: "error", syncError: "Could not add item to cart. Please try again." });
+          return;
+        }
 
         set((state) => ({
           cartId,
           syncStatus: "idle",
+          syncError: null,
           serverTotals: result.totals,
           items: state.items.map((i) =>
             itemKey(i.product.id, i.size) === key
@@ -101,8 +112,9 @@ export const useCartStore = create<CartStore>()(
               : i
           ),
         }));
-      } catch {
-        set({ syncStatus: "error" });
+      } catch (err) {
+        console.error("[cart] addToCart sync failed:", err);
+        set({ syncStatus: "error", syncError: "Cart sync failed. Your item is saved locally." });
       }
     })();
   },
@@ -127,9 +139,10 @@ export const useCartStore = create<CartStore>()(
       try {
         const { removeCartLineItem } = await import("@/lib/medusa-cart");
         const totals = await removeCartLineItem(cartId, lineItemId);
-        set({ syncStatus: "idle", serverTotals: totals ?? get().serverTotals });
-      } catch {
-        set({ syncStatus: "error" });
+        set({ syncStatus: "idle", syncError: null, serverTotals: totals ?? get().serverTotals });
+      } catch (err) {
+        console.error("[cart] removeFromCart sync failed:", err);
+        set({ syncStatus: "error", syncError: "Could not remove item from the server cart. It has been removed locally." });
       }
     })();
   },
@@ -165,9 +178,10 @@ export const useCartStore = create<CartStore>()(
         try {
           const { updateCartLineItem } = await import("@/lib/medusa-cart");
           const totals = await updateCartLineItem(cartId, lineItemId, qty);
-          if (totals) set({ serverTotals: totals, syncStatus: "idle" });
-        } catch {
-          set({ syncStatus: "error" });
+          if (totals) set({ serverTotals: totals, syncStatus: "idle", syncError: null });
+        } catch (err) {
+          console.error("[cart] updateQuantity sync failed:", err);
+          set({ syncStatus: "error", syncError: "Quantity updated locally but could not sync to server." });
         }
       }, 500)
     );
@@ -178,7 +192,7 @@ export const useCartStore = create<CartStore>()(
     debounceTimers.forEach((timer) => clearTimeout(timer));
     debounceTimers.clear();
 
-    set({ items: [], cartId: null, serverTotals: null, syncStatus: "idle" });
+    set({ items: [], cartId: null, serverTotals: null, syncStatus: "idle", syncError: null });
 
     // Fire-and-forget localStorage cleanup (client-only)
     if (typeof window !== "undefined") {

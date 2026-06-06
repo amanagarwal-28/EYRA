@@ -1,0 +1,156 @@
+import type { NextRequest } from "next/server";
+
+/* ── Types ────────────────────────────────────────────────── */
+
+interface TicketBody {
+  name: string;
+  email: string;
+  category: string;
+  message: string;
+}
+
+interface TicketError {
+  field: keyof TicketBody | "root";
+  message: string;
+}
+
+/* ── Server-side validation ───────────────────────────────── */
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const VALID_CATEGORIES = new Set([
+  "order", "return", "product", "payment", "custom", "other",
+]);
+
+function validateTicket(body: Partial<TicketBody>): TicketError[] {
+  const errors: TicketError[] = [];
+
+  if (!body.name?.trim()) {
+    errors.push({ field: "name", message: "Name is required." });
+  } else if (body.name.trim().length < 2) {
+    errors.push({ field: "name", message: "Name must be at least 2 characters." });
+  }
+
+  if (!body.email?.trim()) {
+    errors.push({ field: "email", message: "Email address is required." });
+  } else if (!EMAIL_RE.test(body.email.trim().toLowerCase())) {
+    errors.push({ field: "email", message: "Please enter a valid email address." });
+  }
+
+  if (!body.category) {
+    errors.push({ field: "category", message: "Please select a category." });
+  } else if (!VALID_CATEGORIES.has(body.category)) {
+    errors.push({ field: "category", message: "Invalid category." });
+  }
+
+  if (!body.message?.trim()) {
+    errors.push({ field: "message", message: "Message is required." });
+  } else if (body.message.trim().length < 20) {
+    errors.push({
+      field: "message",
+      message: `Message must be at least 20 characters (${body.message.trim().length}/20).`,
+    });
+  } else if (body.message.trim().length > 2000) {
+    errors.push({ field: "message", message: "Message must be under 2000 characters." });
+  }
+
+  return errors;
+}
+
+/* ── Delivery adapters ────────────────────────────────────── */
+
+async function sendViaResend(ticket: TicketBody): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY!;
+  const recipient = process.env.SUPPORT_EMAIL_RECIPIENT ?? "support@eyra.com";
+  const from = process.env.SUPPORT_EMAIL_FROM ?? "EYRA Support <noreply@eyra.com>";
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      from,
+      to: [recipient],
+      reply_to: ticket.email,
+      subject: `[Support] ${ticket.category.toUpperCase()} — ${ticket.name}`,
+      html: `
+        <h2>New Support Request</h2>
+        <p><strong>Name:</strong> ${ticket.name}</p>
+        <p><strong>Email:</strong> ${ticket.email}</p>
+        <p><strong>Category:</strong> ${ticket.category}</p>
+        <hr />
+        <p>${ticket.message.replace(/\n/g, "<br>")}</p>
+      `,
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend API error ${res.status}: ${body}`);
+  }
+}
+
+async function sendViaWebhook(ticket: TicketBody): Promise<void> {
+  const url = process.env.SUPPORT_WEBHOOK_URL!;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "eyra_support_form",
+      submitted_at: new Date().toISOString(),
+      ...ticket,
+    }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Webhook delivery failed: ${res.status}`);
+}
+
+async function deliverTicket(ticket: TicketBody): Promise<void> {
+  if (process.env.RESEND_API_KEY) {
+    return sendViaResend(ticket);
+  }
+  if (process.env.SUPPORT_WEBHOOK_URL) {
+    return sendViaWebhook(ticket);
+  }
+  // Development fallback — structured log so the data is still visible
+  console.info("[support/ticket] No delivery adapter configured. Ticket payload:", {
+    name: ticket.name,
+    email: ticket.email,
+    category: ticket.category,
+    message: ticket.message,
+    received_at: new Date().toISOString(),
+  });
+}
+
+/* ── Route handler ────────────────────────────────────────── */
+
+export async function POST(request: NextRequest) {
+  let body: Partial<TicketBody>;
+  try {
+    body = (await request.json()) as Partial<TicketBody>;
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const errors = validateTicket(body);
+  if (errors.length > 0) {
+    return Response.json({ errors }, { status: 422 });
+  }
+
+  const ticket = body as TicketBody;
+
+  try {
+    await deliverTicket(ticket);
+  } catch (err) {
+    console.error("[support/ticket] Delivery failed:", err);
+    return Response.json(
+      { error: "Failed to submit your request. Please try again or email support@eyra.com directly." },
+      { status: 500 }
+    );
+  }
+
+  return Response.json({ success: true });
+}
