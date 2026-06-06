@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { useCartStore } from "@/store/useStore";
 import type { CartItem } from "@/store/useStore";
 
@@ -81,17 +84,6 @@ function inputCls(err?: string, touched?: boolean): string {
     "w-full px-4 h-[52px] bg-white text-[#3D3D3D] text-[15px] placeholder:text-[#909090] rounded-2xl outline-none transition-colors duration-150 border font-sans";
   if (touched && err) return `${base} border-[#D93025] focus:border-[#D93025]`;
   return `${base} border-[#E1E1E1] focus:border-[#AAAAAA]`;
-}
-
-function loadRazorpayScript(): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (typeof window !== "undefined" && window.Razorpay) { resolve(true); return; }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
 }
 
 function generateOrderId(): string {
@@ -586,46 +578,6 @@ function PaymentStep({
   );
 }
 
-/* ── Success screen ───────────────────────────────────────── */
-function OrderSuccess({ orderId, paymentMethod }: { orderId: string; paymentMethod: PaymentMethod }) {
-  return (
-    <div className="max-w-screen-xl mx-auto px-6 py-20 flex flex-col items-center gap-6 text-center">
-      <div className="w-20 h-20 rounded-full bg-black flex items-center justify-center">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      </div>
-      <div>
-        <h1 className="font-sans font-medium text-[28px] text-black">Order Placed!</h1>
-        <p className="font-sans font-normal text-[16px] text-[#626262] mt-2">
-          {paymentMethod === "cod" ? "You&apos;ll pay when your order arrives." : "Payment successful. You&apos;re all set!"}
-        </p>
-      </div>
-      <div className="px-6 py-4 bg-[#F7F7F7] rounded-2xl">
-        <p className="font-sans font-normal text-[13px] text-[#626262]">Order ID</p>
-        <p className="font-sans font-medium text-[17px] text-black mt-0.5 tracking-wide">{orderId}</p>
-      </div>
-      <p className="font-sans font-normal text-[14px] text-[#6A6A6A] max-w-[400px]">
-        Made to order — crafted within 7–10 business days. A confirmation has been noted on your account.
-      </p>
-      <div className="flex gap-3">
-        <Link
-          href="/products"
-          className="px-8 py-[14px] bg-black text-white font-sans font-medium text-[16px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200"
-        >
-          Continue Shopping
-        </Link>
-        <Link
-          href="/"
-          className="px-8 py-[14px] border border-[#CFCFCF] text-black font-sans font-medium text-[16px] rounded-full hover:bg-[#F7F7F7] transition-colors duration-200"
-        >
-          Go Home
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 /* ── Empty cart ───────────────────────────────────────────── */
 function EmptyCartView() {
   return (
@@ -648,7 +600,11 @@ function EmptyCartView() {
 
 /* ── Root component ───────────────────────────────────────── */
 export function CheckoutClient() {
+  const router = useRouter();
+  const { user } = useUser();
+
   const items = useCartStore((s) => s.items);
+  const cartId = useCartStore((s) => s.cartId);
   const clearCart = useCartStore((s) => s.clearCart);
 
   /* Pricing derived from store */
@@ -659,9 +615,6 @@ export function CheckoutClient() {
 
   /* Step machine */
   const [step, setStep] = useState<CheckoutStep>(1);
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [orderId, setOrderId] = useState("");
-  const [completedPaymentMethod, setCompletedPaymentMethod] = useState<PaymentMethod>("cod");
 
   /* Shipping form */
   const [form, setForm] = useState<ShippingForm>({
@@ -675,6 +628,19 @@ export function CheckoutClient() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [payLoading, setPayLoading] = useState(false);
   const [razorpayError, setRazorpayError] = useState("");
+
+  /* Razorpay script readiness — set true by Script's onLoad callback */
+  const [razorpayReady, setRazorpayReady] = useState(false);
+
+  /* Prefill Clerk user data into shipping form on first load */
+  useEffect(() => {
+    if (!user) return;
+    setForm((prev) => ({
+      ...prev,
+      fullName: prev.fullName || [user.firstName, user.lastName].filter(Boolean).join(" "),
+      phone: prev.phone || (user.phoneNumbers?.[0]?.phoneNumber?.replace(/^\+91/, "") ?? ""),
+    }));
+  }, [user]);
 
   /* Pincode auto-lookup */
   useEffect(() => {
@@ -725,27 +691,26 @@ export function CheckoutClient() {
     if (Object.keys(shippingErrors).length === 0) setStep(2);
   }
 
-  /* Razorpay checkout */
+  /* Place order handler */
   async function handlePlaceOrder() {
     if (!paymentMethod) return;
     setPayLoading(true);
     setRazorpayError("");
 
+    /* ── COD ─────────────────────────────────────────────────── */
     if (paymentMethod === "cod") {
       await new Promise((r) => setTimeout(r, 600));
       const oid = generateOrderId();
       clearCart();
-      setOrderId(oid);
-      setCompletedPaymentMethod("cod");
-      setOrderSuccess(true);
-      setPayLoading(false);
+      router.push(`/orders/success?orderId=${oid}&method=cod`);
       return;
     }
 
-    /* Prepaid — Razorpay */
-    const loaded = await loadRazorpayScript();
-    if (!loaded) {
-      setRazorpayError("Could not load payment gateway. Please check your connection and try again.");
+    /* ── Prepaid — Razorpay ───────────────────────────────────── */
+
+    // Verify the Script has loaded before proceeding
+    if (!razorpayReady || !window.Razorpay) {
+      setRazorpayError("Payment gateway is still loading. Please wait a moment and try again.");
       setPayLoading(false);
       return;
     }
@@ -757,96 +722,135 @@ export function CheckoutClient() {
       return;
     }
 
+    // Initialize Medusa payment session to get server-generated Razorpay order_id
+    let razorpayOrderId: string | null = null;
+    if (cartId) {
+      try {
+        const res = await fetch("/api/razorpay/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cartId }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { razorpayOrderId?: string | null };
+          razorpayOrderId = data.razorpayOrderId ?? null;
+        }
+      } catch {
+        // Non-fatal — Razorpay works without a server order_id for basic checkout
+      }
+    }
+
     const oid = generateOrderId();
 
-    const rzp = new window.Razorpay({
+    // Clerk user data for prefill — supplements the shipping form
+    const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+    const clerkName = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
+
+    const rzpOptions: Record<string, unknown> = {
       key,
-      amount: total * 100, /* paise */
+      amount: total * 100, // paise
       currency: "INR",
       name: "EYRA",
-      description: "Silver jewellery order",
+      description: "Sterling silver jewellery order",
+      ...(razorpayOrderId ? { order_id: razorpayOrderId } : {}),
       prefill: {
-        name: form.fullName,
+        name: form.fullName || clerkName,
+        email: clerkEmail,
         contact: `+91${form.phone}`,
       },
-      notes: { address: `${form.addressLine1}, ${form.city}, ${form.state} ${form.pincode}` },
+      notes: {
+        order_ref: oid,
+        address: `${form.addressLine1}, ${form.city}, ${form.state} ${form.pincode}`,
+      },
       theme: { color: "#000000" },
-      handler() {
+      handler(response: { razorpay_payment_id: string; razorpay_order_id?: string }) {
         clearCart();
-        setOrderId(oid);
-        setCompletedPaymentMethod("prepaid");
-        setOrderSuccess(true);
-        setPayLoading(false);
+        router.push(
+          `/orders/success?orderId=${oid}&method=prepaid&payment_id=${response.razorpay_payment_id}`
+        );
       },
       modal: {
         ondismiss() {
           setPayLoading(false);
         },
       },
-    });
+    };
 
+    const rzp = new window.Razorpay(rzpOptions);
     rzp.open();
   }
 
   /* Empty cart guard */
-  if (items.length === 0 && !orderSuccess) return <EmptyCartView />;
-
-  /* Success screen */
-  if (orderSuccess) return <OrderSuccess orderId={orderId} paymentMethod={completedPaymentMethod} />;
+  if (items.length === 0) return <EmptyCartView />;
 
   return (
-    <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-10 pb-20">
-      <StepIndicator current={step} />
+    <>
+      {/* Razorpay SDK — loaded lazily, fires setRazorpayReady on success */}
+      <Script
+        id="razorpay-checkout"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+        onLoad={() => setRazorpayReady(true)}
+        onError={() =>
+          setRazorpayError(
+            "Could not load payment gateway. Please check your connection."
+          )
+        }
+      />
 
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
-        {/* Left: active step */}
-        <div className="flex-1 min-w-0">
-          {step === 1 && (
-            <ShippingStep
-              form={form}
-              errors={shippingErrors}
-              touched={touched}
-              pincodeStatus={pincodeStatus}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              onNext={handleShippingNext}
-            />
-          )}
-          {step === 2 && (
-            <ReviewStep
-              items={items}
-              shippingForm={form}
-              subtotal={subtotal}
-              gst={gst}
-              delivery={delivery}
-              total={total}
-              onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
-            />
-          )}
-          {step === 3 && (
-            <PaymentStep
-              total={total}
-              shippingForm={form}
-              paymentMethod={paymentMethod}
-              loading={payLoading}
-              razorpayError={razorpayError}
-              onSelectMethod={setPaymentMethod}
-              onBack={() => setStep(2)}
-              onPlaceOrder={handlePlaceOrder}
-            />
-          )}
+      <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-10 pb-20">
+        <StepIndicator current={step} />
+
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          {/* Left: active step */}
+          <div className="flex-1 min-w-0">
+            {step === 1 && (
+              <ShippingStep
+                form={form}
+                errors={shippingErrors}
+                touched={touched}
+                pincodeStatus={pincodeStatus}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onNext={handleShippingNext}
+              />
+            )}
+            {step === 2 && (
+              <ReviewStep
+                items={items}
+                shippingForm={form}
+                subtotal={subtotal}
+                gst={gst}
+                delivery={delivery}
+                total={total}
+                onBack={() => setStep(1)}
+                onNext={() => setStep(3)}
+              />
+            )}
+            {step === 3 && (
+              <PaymentStep
+                total={total}
+                shippingForm={form}
+                paymentMethod={paymentMethod}
+                loading={payLoading}
+                razorpayError={razorpayError}
+                onSelectMethod={setPaymentMethod}
+                onBack={() => setStep(2)}
+                onPlaceOrder={handlePlaceOrder}
+              />
+            )}
+          </div>
+
+          {/* Right: sticky order summary */}
+          <OrderSidebar
+            items={items}
+            subtotal={subtotal}
+            gst={gst}
+            delivery={delivery}
+            total={total}
+          />
         </div>
-
-        {/* Right: sticky order summary */}
-        <OrderSidebar
-          items={items}
-          subtotal={subtotal}
-          gst={gst}
-          delivery={delivery}
-          total={total}
-        />
       </div>
-    </div>
+    </>
   );
 }
