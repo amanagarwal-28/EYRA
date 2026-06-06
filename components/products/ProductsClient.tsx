@@ -9,128 +9,6 @@ type ProductType = "ring" | "chain" | "earring";
 type SortOption = "trending" | "price-asc" | "price-desc" | "newest";
 type PriceRange = "all" | "under-1500" | "1500-2500" | "2500-4000" | "above-4000";
 
-const PRODUCTS: Product[] = [
-  {
-    id: "1",
-    name: "Eyra Signature Silver Ring",
-    price: 2499,
-    originalPrice: 4499,
-    description: "Crafted in premium 925 sterling silver with a sleek minimal finish designed for timeless elegance.",
-    images: ["/images/product-1.jpg"],
-    inStock: 15,
-    type: "ring",
-  },
-  {
-    id: "2",
-    name: "Celestial Band Ring",
-    price: 1899,
-    originalPrice: 3299,
-    description: "Delicately textured band in 925 sterling silver, perfect for everyday stacking and layering.",
-    images: ["/images/product-2.jpg"],
-    inStock: 8,
-    type: "ring",
-  },
-  {
-    id: "3",
-    name: "Serpentine Silver Chain",
-    price: 3299,
-    originalPrice: 5499,
-    description: "A bold serpentine-link chain in 925 sterling silver, engineered for modern luxury and durability.",
-    images: ["/images/product-3.jpg"],
-    inStock: 12,
-    type: "chain",
-  },
-  {
-    id: "4",
-    name: "Halo Drop Earrings",
-    price: 1299,
-    originalPrice: 2499,
-    description: "Lightweight sterling silver drop earrings with a polished halo frame, perfect for day to evening.",
-    images: ["/images/product-4.jpg"],
-    inStock: 20,
-    type: "earring",
-  },
-  {
-    id: "5",
-    name: "Crescent Stud Earrings",
-    price: 2199,
-    originalPrice: 3999,
-    description: "Minimalist crescent-shaped studs in 925 sterling silver — effortlessly chic for any occasion.",
-    images: ["/images/product-5.jpg"],
-    inStock: 18,
-    type: "earring",
-  },
-  {
-    id: "6",
-    name: "Sovereign Signet Ring",
-    price: 4999,
-    originalPrice: 7499,
-    description: "A heavy-gauge signet ring in pure 925 sterling silver, hand-polished to a mirror finish.",
-    images: ["/images/product-1.jpg"],
-    inStock: 5,
-    type: "ring",
-  },
-  {
-    id: "7",
-    name: "Rope Twist Chain",
-    price: 1499,
-    originalPrice: 2799,
-    description: "Classic rope-twist link chain in 925 sterling silver, timeless and versatile for all looks.",
-    images: ["/images/product-2.jpg"],
-    inStock: 30,
-    type: "chain",
-  },
-  {
-    id: "8",
-    name: "Figaro Link Chain",
-    price: 2799,
-    originalPrice: 4799,
-    description: "The iconic Figaro pattern reimagined in sterling silver — a staple for the modern wardrobe.",
-    images: ["/images/product-3.jpg"],
-    inStock: 14,
-    type: "chain",
-  },
-  {
-    id: "9",
-    name: "Eternity Stacking Ring",
-    price: 3499,
-    originalPrice: 5999,
-    description: "A slim eternity band set with hand-placed cubic zirconia in gleaming 925 sterling silver.",
-    images: ["/images/product-4.jpg"],
-    inStock: 7,
-    type: "ring",
-  },
-  {
-    id: "10",
-    name: "Luna Ear Cuff",
-    price: 1199,
-    originalPrice: 2199,
-    description: "An adjustable ear cuff in sterling silver that adds edge and dimension without a piercing.",
-    images: ["/images/product-5.jpg"],
-    inStock: 25,
-    type: "earring",
-  },
-  {
-    id: "11",
-    name: "Geometric Dome Ring",
-    price: 2999,
-    originalPrice: 5299,
-    description: "An architectural dome ring in 925 sterling silver, a statement piece for the design-forward.",
-    images: ["/images/product-1.jpg"],
-    inStock: 9,
-    type: "ring",
-  },
-  {
-    id: "12",
-    name: "Box Link Statement Chain",
-    price: 5499,
-    originalPrice: 8999,
-    description: "Chunky box-link chain in heavyweight 925 sterling silver — bold, structural, and unforgettable.",
-    images: ["/images/product-2.jpg"],
-    inStock: 4,
-    type: "chain",
-  },
-];
 
 const PRICE_RANGES: { label: string; value: PriceRange }[] = [
   { label: "All prices", value: "all" },
@@ -298,14 +176,14 @@ function FilterPanel({
   );
 }
 
-export function ProductsClient() {
+export function ProductsClient({ products }: { products: Product[] }) {
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([]);
   const [priceRange, setPriceRange] = useState<PriceRange>("all");
   const [sortBy, setSortBy] = useState<SortOption>("trending");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    let result = [...PRODUCTS];
+    let result = [...products];
     if (selectedTypes.length > 0) {
       result = result.filter((p) => selectedTypes.includes(p.type));
     }

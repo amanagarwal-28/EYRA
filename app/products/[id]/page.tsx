@@ -5,10 +5,11 @@ import { notFound } from "next/navigation";
 import { ProductDetailClient } from "@/components/products/ProductDetailClient";
 import { CtaBanner } from "@/components/home/CtaBanner";
 import { NewsletterBanner } from "@/components/home/NewsletterBanner";
-import { PRODUCTS, getProductById, getSimilarProducts } from "@/lib/products";
+import { getProducts, getProductByHandle, getSimilarProducts } from "@/lib/medusa";
 
-export function generateStaticParams() {
-  return PRODUCTS.map((p) => ({ id: p.id }));
+export async function generateStaticParams() {
+  const products = await getProducts();
+  return products.map((p) => ({ id: p.id }));
 }
 
 export async function generateMetadata({
@@ -17,7 +18,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const product = getProductById(id);
+  const product = await getProductByHandle(id);
   if (!product) return { title: "Product Not Found" };
   return {
     title: product.name,
@@ -31,10 +32,11 @@ export default async function ProductDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const product = getProductById(id);
+  const [product, similar] = await Promise.all([
+    getProductByHandle(id),
+    getSimilarProducts(id, 8),
+  ]);
   if (!product) notFound();
-
-  const similar = getSimilarProducts(id, 8);
 
   return (
     <>
