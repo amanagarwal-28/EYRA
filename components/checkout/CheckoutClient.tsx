@@ -1,0 +1,852 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useCartStore } from "@/store/useStore";
+import type { CartItem } from "@/store/useStore";
+
+/* ── Constants ────────────────────────────────────────────── */
+const DELIVERY_THRESHOLD = 499;
+const DELIVERY_CHARGE = 99;
+const GST_RATE = 0.03;
+
+const INDIAN_STATES = [
+  "Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh",
+  "Assam","Bihar","Chandigarh","Chhattisgarh",
+  "Dadra and Nagar Haveli and Daman and Diu","Delhi","Goa",
+  "Gujarat","Haryana","Himachal Pradesh","Jammu and Kashmir",
+  "Jharkhand","Karnataka","Kerala","Ladakh","Lakshadweep",
+  "Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Puducherry","Punjab","Rajasthan",
+  "Sikkim","Tamil Nadu","Telangana","Tripura",
+  "Uttar Pradesh","Uttarakhand","West Bengal",
+];
+
+/* ── Types ────────────────────────────────────────────────── */
+interface ShippingForm {
+  fullName: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  phone: string;
+}
+
+type ShippingErrors = Partial<Record<keyof ShippingForm, string>>;
+type TouchedFields = Partial<Record<keyof ShippingForm, boolean>>;
+type PaymentMethod = "cod" | "prepaid";
+type CheckoutStep = 1 | 2 | 3;
+type PincodeStatus = "idle" | "loading" | "valid" | "invalid";
+
+declare global {
+  interface Window {
+    Razorpay: new (opts: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+/* ── Validation ───────────────────────────────────────────── */
+function validateShipping(f: ShippingForm): ShippingErrors {
+  const e: ShippingErrors = {};
+  if (!f.fullName.trim()) e.fullName = "Full name is required.";
+  else if (f.fullName.trim().length < 2) e.fullName = "Name must be at least 2 characters.";
+  if (!f.addressLine1.trim()) e.addressLine1 = "Address is required.";
+  else if (f.addressLine1.trim().length < 10) e.addressLine1 = "Please enter a complete address.";
+  if (!f.city.trim()) e.city = "City is required.";
+  if (!f.state) e.state = "Please select a state.";
+  if (!f.pincode.trim()) e.pincode = "Pincode is required.";
+  else if (!/^\d{6}$/.test(f.pincode.trim())) e.pincode = "Enter a valid 6-digit pincode.";
+  if (!f.phone.trim()) e.phone = "Phone number is required.";
+  else if (!/^[6-9]\d{9}$/.test(f.phone.trim())) e.phone = "Enter a valid 10-digit mobile number.";
+  return e;
+}
+
+/* ── Helpers ──────────────────────────────────────────────── */
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return (
+    <p className="mt-1.5 text-[12px] text-[#D93025] flex items-center gap-1">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" stroke="#D93025" strokeWidth="2" />
+        <path d="M12 7v5M12 16.5v.5" stroke="#D93025" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+      {msg}
+    </p>
+  );
+}
+
+function inputCls(err?: string, touched?: boolean): string {
+  const base =
+    "w-full px-4 h-[52px] bg-white text-[#3D3D3D] text-[15px] placeholder:text-[#909090] rounded-2xl outline-none transition-colors duration-150 border font-sans";
+  if (touched && err) return `${base} border-[#D93025] focus:border-[#D93025]`;
+  return `${base} border-[#E1E1E1] focus:border-[#AAAAAA]`;
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window !== "undefined" && window.Razorpay) { resolve(true); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+function generateOrderId(): string {
+  return `EYRA-${Date.now().toString(36).toUpperCase()}`;
+}
+
+/* ── Step indicator ───────────────────────────────────────── */
+const STEP_LABELS = ["Shipping", "Review", "Payment"] as const;
+
+function StepIndicator({ current }: { current: CheckoutStep }) {
+  return (
+    <div className="flex items-center justify-center mb-10">
+      {STEP_LABELS.map((label, i) => {
+        const num = (i + 1) as CheckoutStep;
+        const done = current > num;
+        const active = current === num;
+        return (
+          <div key={label} className="flex items-center">
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-[14px] font-medium transition-colors duration-200 font-sans ${
+                  done || active ? "bg-black text-white" : "bg-[#F0F0F0] text-[#AAAAAA]"
+                }`}
+              >
+                {done ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                ) : (
+                  num
+                )}
+              </div>
+              <span className={`text-[12px] font-sans ${active ? "text-black font-medium" : done ? "text-[#555]" : "text-[#AAAAAA]"}`}>
+                {label}
+              </span>
+            </div>
+            {i < STEP_LABELS.length - 1 && (
+              <div className={`w-20 h-[1.5px] mb-4 mx-2 transition-colors duration-300 ${current > num ? "bg-black" : "bg-[#E0E0E0]"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Order sidebar ────────────────────────────────────────── */
+function OrderSidebar({
+  items, subtotal, gst, delivery, total,
+}: {
+  items: CartItem[]; subtotal: number; gst: number; delivery: number; total: number;
+}) {
+  const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+  return (
+    <div
+      className="w-full lg:w-[360px] flex-shrink-0 rounded-2xl p-6 flex flex-col gap-5 lg:sticky lg:self-start"
+      style={{ background: "#F7F7F7", top: "calc(var(--nav-height) + 2rem)" }}
+    >
+      <h2 className="font-sans font-medium text-[16px] text-black">Order Summary</h2>
+
+      <div className="flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-1">
+        {items.map((item) => (
+          <div key={`${item.product.id}-${item.size}`} className="flex gap-3 items-center">
+            <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-white border border-[#E1E1E1]">
+              <Image src={item.product.images[0]} alt={item.product.name} fill className="object-contain p-1" sizes="48px" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-sans font-normal text-[13px] text-black truncate">{item.product.name}</p>
+              {item.size && <p className="font-sans font-normal text-[11px] text-[#909090]">Size: {item.size}</p>}
+              <p className="font-sans font-normal text-[11px] text-[#626262]">Qty: {item.quantity}</p>
+            </div>
+            <span className="font-sans font-medium text-[13px] text-black flex-shrink-0">
+              ₹{(item.product.price * item.quantity).toLocaleString("en-IN")}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="w-full h-px bg-[#DFDFDF]" />
+
+      <div className="flex flex-col gap-2.5 text-[13px] font-sans">
+        <div className="flex justify-between">
+          <span className="text-[#626262]">Subtotal ({totalQty} {totalQty === 1 ? "item" : "items"})</span>
+          <span className="text-black">₹{subtotal.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[#626262]">Tax (GST 3%)</span>
+          <span className="text-black">₹{gst.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[#626262]">Delivery</span>
+          {delivery === 0
+            ? <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
+            : <span className="text-black">₹{delivery}</span>}
+        </div>
+      </div>
+
+      <div className="w-full h-px bg-[#DFDFDF]" />
+
+      <div className="flex justify-between items-center">
+        <span className="font-sans font-semibold text-[16px] text-black">Total</span>
+        <span className="font-sans font-semibold text-[20px] text-black">₹{total.toLocaleString("en-IN")}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Step 1: Shipping ─────────────────────────────────────── */
+function ShippingStep({
+  form, errors, touched, pincodeStatus, onChange, onBlur, onNext,
+}: {
+  form: ShippingForm;
+  errors: ShippingErrors;
+  touched: TouchedFields;
+  pincodeStatus: PincodeStatus;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onNext: () => void;
+}) {
+  return (
+    <div>
+      <h2 className="font-sans font-medium text-[20px] text-black mb-6">Shipping Details</h2>
+      <form onSubmit={(e) => { e.preventDefault(); onNext(); }} noValidate className="flex flex-col gap-4">
+
+        {/* Full name */}
+        <div>
+          <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">Full Name</label>
+          <input
+            type="text" name="fullName" value={form.fullName}
+            onChange={onChange} onBlur={onBlur}
+            placeholder="Aman Agarwal"
+            className={inputCls(errors.fullName, touched.fullName)}
+            autoComplete="name"
+          />
+          <FieldError msg={touched.fullName ? errors.fullName : undefined} />
+        </div>
+
+        {/* Address line 1 */}
+        <div>
+          <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">Address Line 1</label>
+          <input
+            type="text" name="addressLine1" value={form.addressLine1}
+            onChange={onChange} onBlur={onBlur}
+            placeholder="House no., Street, Area"
+            className={inputCls(errors.addressLine1, touched.addressLine1)}
+            autoComplete="address-line1"
+          />
+          <FieldError msg={touched.addressLine1 ? errors.addressLine1 : undefined} />
+        </div>
+
+        {/* Address line 2 */}
+        <div>
+          <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">
+            Address Line 2 <span className="text-[#AAAAAA]">(optional)</span>
+          </label>
+          <input
+            type="text" name="addressLine2" value={form.addressLine2}
+            onChange={onChange} onBlur={onBlur}
+            placeholder="Landmark, Apartment, Building"
+            className={inputCls(undefined, false)}
+            autoComplete="address-line2"
+          />
+        </div>
+
+        {/* Pincode + City */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">Pincode</label>
+            <div className="relative">
+              <input
+                type="text" name="pincode" value={form.pincode}
+                onChange={onChange} onBlur={onBlur}
+                placeholder="400001" maxLength={6}
+                className={inputCls(errors.pincode, touched.pincode)}
+                autoComplete="postal-code" inputMode="numeric"
+              />
+              {pincodeStatus === "loading" && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#AAAAAA] border-t-black rounded-full animate-spin" />
+              )}
+              {pincodeStatus === "valid" && (
+                <svg className="absolute right-3 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#47B10A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              )}
+              {pincodeStatus === "invalid" && touched.pincode && (
+                <svg className="absolute right-3 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D93025" strokeWidth="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" strokeLinecap="round" />
+                </svg>
+              )}
+            </div>
+            <FieldError msg={touched.pincode ? errors.pincode : undefined} />
+          </div>
+          <div>
+            <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">City</label>
+            <input
+              type="text" name="city" value={form.city}
+              onChange={onChange} onBlur={onBlur}
+              placeholder="Mumbai"
+              className={inputCls(errors.city, touched.city)}
+              autoComplete="address-level2"
+            />
+            <FieldError msg={touched.city ? errors.city : undefined} />
+          </div>
+        </div>
+
+        {/* State */}
+        <div>
+          <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">State</label>
+          <div className="relative">
+            <select
+              name="state" value={form.state}
+              onChange={onChange} onBlur={onBlur}
+              className={`${inputCls(errors.state, touched.state)} appearance-none pr-10 ${!form.state ? "text-[#909090]" : "text-[#3D3D3D]"}`}
+            >
+              <option value="" disabled>Select state / UT</option>
+              {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <svg className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#909090" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+          <FieldError msg={touched.state ? errors.state : undefined} />
+        </div>
+
+        {/* Phone */}
+        <div>
+          <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">Phone Number</label>
+          <div className="flex gap-2">
+            <div className="flex items-center px-4 h-[52px] bg-white border border-[#E1E1E1] rounded-2xl font-sans text-[15px] text-[#3D3D3D] flex-shrink-0 select-none">
+              +91
+            </div>
+            <input
+              type="tel" name="phone" value={form.phone}
+              onChange={onChange} onBlur={onBlur}
+              placeholder="98765 43210" maxLength={10}
+              className={`flex-1 ${inputCls(errors.phone, touched.phone)}`}
+              autoComplete="tel-national" inputMode="numeric"
+            />
+          </div>
+          <FieldError msg={touched.phone ? errors.phone : undefined} />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full h-[52px] bg-black text-white font-sans font-medium text-[16px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200 mt-2"
+          style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
+        >
+          Continue to Review →
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ── Step 2: Review ───────────────────────────────────────── */
+function ReviewStep({
+  items, shippingForm, subtotal, gst, delivery, total, onBack, onNext,
+}: {
+  items: CartItem[]; shippingForm: ShippingForm;
+  subtotal: number; gst: number; delivery: number; total: number;
+  onBack: () => void; onNext: () => void;
+}) {
+  const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+  return (
+    <div className="flex flex-col gap-5">
+      <h2 className="font-sans font-medium text-[20px] text-black">Order Review</h2>
+
+      {/* Items */}
+      <div className="rounded-2xl border border-[#E1E1E1] overflow-hidden">
+        <div className="bg-[#F7F7F7] px-5 py-3">
+          <p className="font-sans font-medium text-[12px] text-[#626262] uppercase tracking-wider">
+            Items ({totalQty})
+          </p>
+        </div>
+        <div className="divide-y divide-[#F5F5F5]">
+          {items.map((item) => (
+            <div key={`${item.product.id}-${item.size}`} className="flex gap-4 px-5 py-4 items-center">
+              <div className="relative w-[60px] h-[60px] flex-shrink-0 rounded-xl overflow-hidden bg-[#F9F9F9] border border-[#E1E1E1]">
+                <Image src={item.product.images[0]} alt={item.product.name} fill className="object-contain p-1.5" sizes="60px" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-sans font-normal text-[15px] text-black">{item.product.name}</p>
+                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                  {item.size && <span className="font-sans text-[12px] text-[#909090]">Size: {item.size}</span>}
+                  <span className="font-sans text-[12px] text-[#909090]">Qty: {item.quantity}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end flex-shrink-0">
+                <span className="font-sans font-medium text-[15px] text-black">
+                  ₹{(item.product.price * item.quantity).toLocaleString("en-IN")}
+                </span>
+                {item.product.originalPrice > item.product.price && (
+                  <span className="font-sans text-[12px] text-[#AAAAAA] line-through">
+                    ₹{(item.product.originalPrice * item.quantity).toLocaleString("en-IN")}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Price breakdown */}
+      <div className="rounded-2xl border border-[#E1E1E1] overflow-hidden">
+        <div className="bg-[#F7F7F7] px-5 py-3">
+          <p className="font-sans font-medium text-[12px] text-[#626262] uppercase tracking-wider">Price Breakdown</p>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-3 font-sans text-[14px]">
+          <div className="flex justify-between">
+            <span className="text-[#626262]">Subtotal</span>
+            <span className="text-black">₹{subtotal.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#626262]">Tax (GST 3%)</span>
+            <span className="text-black">₹{gst.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#626262]">Delivery</span>
+            {delivery === 0
+              ? <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
+              : <span className="text-black">₹{delivery}</span>}
+          </div>
+          <div className="h-px bg-[#F0F0F0]" />
+          <div className="flex justify-between">
+            <span className="font-semibold text-black">Total Payable</span>
+            <span className="font-semibold text-[18px] text-black">₹{total.toLocaleString("en-IN")}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Delivery address */}
+      <div className="rounded-2xl border border-[#E1E1E1] overflow-hidden">
+        <div className="bg-[#F7F7F7] px-5 py-3">
+          <p className="font-sans font-medium text-[12px] text-[#626262] uppercase tracking-wider">Delivery Address</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="font-sans font-medium text-[15px] text-black">{shippingForm.fullName}</p>
+          <p className="font-sans font-normal text-[14px] text-[#626262] mt-1 leading-[22px]">
+            {shippingForm.addressLine1}
+            {shippingForm.addressLine2 && `, ${shippingForm.addressLine2}`}
+            <br />
+            {shippingForm.city}, {shippingForm.state} — {shippingForm.pincode}
+            <br />
+            +91 {shippingForm.phone}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="flex-1 h-[52px] border border-[#CFCFCF] text-black font-sans font-medium text-[16px] rounded-full hover:bg-[#F7F7F7] transition-colors duration-200"
+        >
+          ← Edit
+        </button>
+        <button
+          onClick={onNext}
+          className="flex-[2] h-[52px] bg-black text-white font-sans font-medium text-[16px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200"
+          style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
+        >
+          Confirm &amp; Pay →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Step 3: Payment ──────────────────────────────────────── */
+function PaymentStep({
+  total, shippingForm, paymentMethod, loading, razorpayError,
+  onSelectMethod, onBack, onPlaceOrder,
+}: {
+  total: number; shippingForm: ShippingForm;
+  paymentMethod: PaymentMethod | null; loading: boolean; razorpayError: string;
+  onSelectMethod: (m: PaymentMethod) => void;
+  onBack: () => void; onPlaceOrder: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      <h2 className="font-sans font-medium text-[20px] text-black">Select Payment Method</h2>
+
+      <div className="flex flex-col gap-3">
+        {/* COD */}
+        <button
+          onClick={() => onSelectMethod("cod")}
+          className={`flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-colors duration-150 w-full ${
+            paymentMethod === "cod" ? "border-black bg-[#FAFAFA]" : "border-[#E1E1E1] hover:border-[#AAAAAA]"
+          }`}
+        >
+          <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${paymentMethod === "cod" ? "border-black" : "border-[#CFCFCF]"}`}>
+            {paymentMethod === "cod" && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
+          </div>
+          <div className="flex-1">
+            <p className="font-sans font-medium text-[16px] text-black">Cash on Delivery</p>
+            <p className="font-sans font-normal text-[13px] text-[#626262] mt-1">
+              Pay in cash when your order arrives. No online transaction needed.
+            </p>
+          </div>
+          <svg className="flex-shrink-0 mt-0.5" width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2" y="5" width="20" height="14" rx="2" stroke="#626262" strokeWidth="1.5" />
+            <circle cx="12" cy="12" r="3" stroke="#626262" strokeWidth="1.5" />
+            <path d="M2 9h20" stroke="#626262" strokeWidth="1.5" />
+          </svg>
+        </button>
+
+        {/* Razorpay */}
+        <button
+          onClick={() => onSelectMethod("prepaid")}
+          className={`flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-colors duration-150 w-full ${
+            paymentMethod === "prepaid" ? "border-black bg-[#FAFAFA]" : "border-[#E1E1E1] hover:border-[#AAAAAA]"
+          }`}
+        >
+          <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${paymentMethod === "prepaid" ? "border-black" : "border-[#CFCFCF]"}`}>
+            {paymentMethod === "prepaid" && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
+          </div>
+          <div className="flex-1">
+            <p className="font-sans font-medium text-[16px] text-black">Prepaid — Razorpay</p>
+            <p className="font-sans font-normal text-[13px] text-[#626262] mt-1">
+              Pay securely via UPI, credit/debit card, net banking, or wallet.
+            </p>
+            <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+              {["UPI", "Cards", "Net Banking", "Wallets"].map((m) => (
+                <span key={m} className="px-2 py-0.5 bg-[#F0F0F0] rounded text-[11px] font-sans font-medium text-[#444]">{m}</span>
+              ))}
+            </div>
+          </div>
+          {/* Razorpay wordmark */}
+          <div className="flex-shrink-0 mt-0.5 flex items-center justify-center w-8 h-8 rounded-full bg-[#072654]">
+            <span className="text-white font-bold text-[11px]">R</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Security badge — shown when prepaid selected */}
+      {paymentMethod === "prepaid" && (
+        <div className="flex items-start gap-3 p-4 bg-[#F7FFF4] border border-[#C8EEB8] rounded-2xl">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="mt-0.5 flex-shrink-0" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#47B10A" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M9 12l2 2 4-4" stroke="#47B10A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <p className="font-sans font-normal text-[12px] text-[#3D7A1A] leading-[18px]">
+            Payments are 256-bit SSL encrypted via Razorpay. Your card details are never stored on our servers.
+          </p>
+        </div>
+      )}
+
+      {/* No method selected error */}
+      {paymentMethod === null && (
+        <p className="font-sans text-[13px] text-[#D93025]">Please select a payment method to continue.</p>
+      )}
+
+      {/* Razorpay load error */}
+      {razorpayError && (
+        <p className="font-sans text-[13px] text-[#D93025]">{razorpayError}</p>
+      )}
+
+      {/* Address summary chip */}
+      <div className="flex items-center gap-2 p-3 bg-[#F7F7F7] rounded-2xl">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#626262" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+          <circle cx="12" cy="10" r="3" />
+        </svg>
+        <p className="font-sans font-normal text-[12px] text-[#626262] truncate">
+          {shippingForm.fullName} · {shippingForm.city}, {shippingForm.state} {shippingForm.pincode}
+        </p>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          disabled={loading}
+          className="flex-1 h-[52px] border border-[#CFCFCF] text-black font-sans font-medium text-[16px] rounded-full hover:bg-[#F7F7F7] disabled:opacity-40 transition-colors duration-200"
+        >
+          ← Back
+        </button>
+        <button
+          onClick={onPlaceOrder}
+          disabled={!paymentMethod || loading}
+          className="flex-[2] h-[52px] bg-black text-white font-sans font-medium text-[16px] rounded-full hover:bg-[#1a1a1a] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center gap-2"
+          style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
+        >
+          {loading ? (
+            <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+          ) : paymentMethod === "cod" ? (
+            "Place Order"
+          ) : (
+            `Pay ₹${total.toLocaleString("en-IN")}`
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Success screen ───────────────────────────────────────── */
+function OrderSuccess({ orderId, paymentMethod }: { orderId: string; paymentMethod: PaymentMethod }) {
+  return (
+    <div className="max-w-screen-xl mx-auto px-6 py-20 flex flex-col items-center gap-6 text-center">
+      <div className="w-20 h-20 rounded-full bg-black flex items-center justify-center">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      </div>
+      <div>
+        <h1 className="font-sans font-medium text-[28px] text-black">Order Placed!</h1>
+        <p className="font-sans font-normal text-[16px] text-[#626262] mt-2">
+          {paymentMethod === "cod" ? "You&apos;ll pay when your order arrives." : "Payment successful. You&apos;re all set!"}
+        </p>
+      </div>
+      <div className="px-6 py-4 bg-[#F7F7F7] rounded-2xl">
+        <p className="font-sans font-normal text-[13px] text-[#626262]">Order ID</p>
+        <p className="font-sans font-medium text-[17px] text-black mt-0.5 tracking-wide">{orderId}</p>
+      </div>
+      <p className="font-sans font-normal text-[14px] text-[#6A6A6A] max-w-[400px]">
+        Made to order — crafted within 7–10 business days. A confirmation has been noted on your account.
+      </p>
+      <div className="flex gap-3">
+        <Link
+          href="/products"
+          className="px-8 py-[14px] bg-black text-white font-sans font-medium text-[16px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200"
+        >
+          Continue Shopping
+        </Link>
+        <Link
+          href="/"
+          className="px-8 py-[14px] border border-[#CFCFCF] text-black font-sans font-medium text-[16px] rounded-full hover:bg-[#F7F7F7] transition-colors duration-200"
+        >
+          Go Home
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ── Empty cart ───────────────────────────────────────────── */
+function EmptyCartView() {
+  return (
+    <div className="max-w-screen-xl mx-auto px-6 py-24 flex flex-col items-center gap-6 text-center">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#CFCFCF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+      <p className="font-sans font-normal text-[20px] text-[#909090]">Your cart is empty</p>
+      <Link
+        href="/products"
+        className="px-8 py-[14px] bg-black text-white font-sans font-medium text-[16px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200"
+      >
+        Browse Products
+      </Link>
+    </div>
+  );
+}
+
+/* ── Root component ───────────────────────────────────────── */
+export function CheckoutClient() {
+  const items = useCartStore((s) => s.items);
+  const clearCart = useCartStore((s) => s.clearCart);
+
+  /* Pricing derived from store */
+  const subtotal = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
+  const gst = Math.round(subtotal * GST_RATE);
+  const delivery = subtotal > DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
+  const total = subtotal + gst + delivery;
+
+  /* Step machine */
+  const [step, setStep] = useState<CheckoutStep>(1);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderId, setOrderId] = useState("");
+  const [completedPaymentMethod, setCompletedPaymentMethod] = useState<PaymentMethod>("cod");
+
+  /* Shipping form */
+  const [form, setForm] = useState<ShippingForm>({
+    fullName: "", addressLine1: "", addressLine2: "",
+    city: "", state: "", pincode: "", phone: "",
+  });
+  const [touched, setTouched] = useState<TouchedFields>({});
+  const [pincodeStatus, setPincodeStatus] = useState<PincodeStatus>("idle");
+
+  /* Payment */
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [payLoading, setPayLoading] = useState(false);
+  const [razorpayError, setRazorpayError] = useState("");
+
+  /* Pincode auto-lookup */
+  useEffect(() => {
+    if (!/^\d{6}$/.test(form.pincode)) {
+      setPincodeStatus("idle");
+      return;
+    }
+    setPincodeStatus("loading");
+    const controller = new AbortController();
+    fetch(`https://api.postalpincode.in/pincode/${form.pincode}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then(([data]: [{ Status: string; PostOffice?: { District: string; State: string }[] }]) => {
+        if (data.Status === "Success" && data.PostOffice?.length) {
+          const po = data.PostOffice[0];
+          setForm((prev) => ({
+            ...prev,
+            city: prev.city || po.District,
+            state: prev.state || po.State,
+          }));
+          setPincodeStatus("valid");
+        } else {
+          setPincodeStatus("invalid");
+        }
+      })
+      .catch(() => { /* aborted or network error — stay idle */ });
+    return () => controller.abort();
+  }, [form.pincode]);
+
+  /* Form handlers */
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  }
+
+  function handleBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+    setTouched((prev) => ({ ...prev, [e.target.name]: true }));
+  }
+
+  const shippingErrors = validateShipping(form);
+
+  function handleShippingNext() {
+    const allTouched: TouchedFields = {
+      fullName: true, addressLine1: true, city: true,
+      state: true, pincode: true, phone: true,
+    };
+    setTouched(allTouched);
+    if (Object.keys(shippingErrors).length === 0) setStep(2);
+  }
+
+  /* Razorpay checkout */
+  async function handlePlaceOrder() {
+    if (!paymentMethod) return;
+    setPayLoading(true);
+    setRazorpayError("");
+
+    if (paymentMethod === "cod") {
+      await new Promise((r) => setTimeout(r, 600));
+      const oid = generateOrderId();
+      clearCart();
+      setOrderId(oid);
+      setCompletedPaymentMethod("cod");
+      setOrderSuccess(true);
+      setPayLoading(false);
+      return;
+    }
+
+    /* Prepaid — Razorpay */
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      setRazorpayError("Could not load payment gateway. Please check your connection and try again.");
+      setPayLoading(false);
+      return;
+    }
+
+    const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    if (!key) {
+      setRazorpayError("Payment gateway is not configured. Please use Cash on Delivery or contact support.");
+      setPayLoading(false);
+      return;
+    }
+
+    const oid = generateOrderId();
+
+    const rzp = new window.Razorpay({
+      key,
+      amount: total * 100, /* paise */
+      currency: "INR",
+      name: "EYRA",
+      description: "Silver jewellery order",
+      prefill: {
+        name: form.fullName,
+        contact: `+91${form.phone}`,
+      },
+      notes: { address: `${form.addressLine1}, ${form.city}, ${form.state} ${form.pincode}` },
+      theme: { color: "#000000" },
+      handler() {
+        clearCart();
+        setOrderId(oid);
+        setCompletedPaymentMethod("prepaid");
+        setOrderSuccess(true);
+        setPayLoading(false);
+      },
+      modal: {
+        ondismiss() {
+          setPayLoading(false);
+        },
+      },
+    });
+
+    rzp.open();
+  }
+
+  /* Empty cart guard */
+  if (items.length === 0 && !orderSuccess) return <EmptyCartView />;
+
+  /* Success screen */
+  if (orderSuccess) return <OrderSuccess orderId={orderId} paymentMethod={completedPaymentMethod} />;
+
+  return (
+    <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-10 pb-20">
+      <StepIndicator current={step} />
+
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Left: active step */}
+        <div className="flex-1 min-w-0">
+          {step === 1 && (
+            <ShippingStep
+              form={form}
+              errors={shippingErrors}
+              touched={touched}
+              pincodeStatus={pincodeStatus}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              onNext={handleShippingNext}
+            />
+          )}
+          {step === 2 && (
+            <ReviewStep
+              items={items}
+              shippingForm={form}
+              subtotal={subtotal}
+              gst={gst}
+              delivery={delivery}
+              total={total}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
+            />
+          )}
+          {step === 3 && (
+            <PaymentStep
+              total={total}
+              shippingForm={form}
+              paymentMethod={paymentMethod}
+              loading={payLoading}
+              razorpayError={razorpayError}
+              onSelectMethod={setPaymentMethod}
+              onBack={() => setStep(2)}
+              onPlaceOrder={handlePlaceOrder}
+            />
+          )}
+        </div>
+
+        {/* Right: sticky order summary */}
+        <OrderSidebar
+          items={items}
+          subtotal={subtotal}
+          gst={gst}
+          delivery={delivery}
+          total={total}
+        />
+      </div>
+    </div>
+  );
+}
