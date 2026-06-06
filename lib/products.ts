@@ -5,6 +5,8 @@ export interface DetailProduct extends Product {
   sizes: number[];
   rating: number;
   reviewCount: number;
+  /** Maps size option value (e.g. "7") → Medusa variant ID. Undefined for mock data. */
+  sizeVariantMap?: Record<string, string>;
 }
 
 const RING_SIZES = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];

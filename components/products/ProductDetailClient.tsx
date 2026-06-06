@@ -352,7 +352,11 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
                 <button
                   onClick={() => {
                     if (!inCart) {
-                      addToCart(product, product.type === "ring" ? selectedSize : null);
+                      const variantId =
+                        product.type === "ring" && selectedSize
+                          ? product.sizeVariantMap?.[String(selectedSize)] ?? product.variantId
+                          : product.variantId;
+                      addToCart(product, product.type === "ring" ? selectedSize : null, variantId);
                     }
                   }}
                   className={`flex-1 flex items-center justify-center px-8 py-[14px] font-sans font-medium text-[18px] leading-[20px] rounded-full border transition-colors duration-200 ${

@@ -162,11 +162,15 @@ function normalizeType(p: MedusaProduct): "ring" | "chain" | "earring" {
 }
 
 /**
- * Extract the cheapest variant's calculated price pair.
- * Falls back to 0/0 if no pricing context was provided (no region/currency param).
+ * Extract the cheapest variant's calculated price pair and its Medusa variant ID.
+ * Falls back to zeroes if no pricing context was provided (no region/currency param).
  */
-function extractPrice(variants: MedusaVariant[]): { price: number; originalPrice: number } {
-  if (variants.length === 0) return { price: 0, originalPrice: 0 };
+function extractPrice(variants: MedusaVariant[]): {
+  price: number;
+  originalPrice: number;
+  cheapestVariantId: string | undefined;
+} {
+  if (variants.length === 0) return { price: 0, originalPrice: 0, cheapestVariantId: undefined };
 
   const cheapest = variants.reduce((min, v) => {
     const minAmt = min.calculated_price?.calculated_amount ?? Infinity;
@@ -174,7 +178,9 @@ function extractPrice(variants: MedusaVariant[]): { price: number; originalPrice
     return vAmt < minAmt ? v : min;
   });
 
-  if (!cheapest.calculated_price) return { price: 0, originalPrice: 0 };
+  if (!cheapest.calculated_price) {
+    return { price: 0, originalPrice: 0, cheapestVariantId: cheapest.id };
+  }
 
   const price = Math.round(cheapest.calculated_price.calculated_amount / AMOUNT_DIVISOR);
   const originalRaw = cheapest.calculated_price.original_amount;
@@ -183,7 +189,7 @@ function extractPrice(variants: MedusaVariant[]): { price: number; originalPrice
       ? Math.round(originalRaw / AMOUNT_DIVISOR)
       : Math.round(price * 1.6); // synthetic MRP if no compare-at price set
 
-  return { price, originalPrice };
+  return { price, originalPrice, cheapestVariantId: cheapest.id };
 }
 
 /** Build an ordered image URL array. Thumbnail goes first if present. */
@@ -201,7 +207,7 @@ function extractImages(p: MedusaProduct): string[] {
  * product URLs are human-readable (/products/eyra-signature-silver-ring).
  */
 function toProduct(p: MedusaProduct): Product {
-  const { price, originalPrice } = extractPrice(p.variants);
+  const { price, originalPrice, cheapestVariantId } = extractPrice(p.variants);
   const inStock = p.variants.reduce((s, v) => s + (v.inventory_quantity ?? 0), 0);
 
   return {
@@ -213,6 +219,7 @@ function toProduct(p: MedusaProduct): Product {
     images: extractImages(p),
     inStock,
     type: normalizeType(p),
+    variantId: cheapestVariantId,
   };
 }
 
@@ -252,7 +259,17 @@ function toDetailProduct(p: MedusaProduct): DetailProduct {
   const reviewCount =
     typeof p.metadata?.review_count === "number" ? p.metadata.review_count : 0;
 
-  return { ...base, specs, sizes, rating, reviewCount };
+  // Build size → variant_id lookup so the detail page can pass the correct
+  // variantId to addToCart when the user selects a ring size.
+  const sizeVariantMap: Record<string, string> = {};
+  if (sizeOption) {
+    for (const variant of p.variants) {
+      const sizeOpt = variant.options.find((o) => o.option_id === sizeOption.id);
+      if (sizeOpt) sizeVariantMap[sizeOpt.value] = variant.id;
+    }
+  }
+
+  return { ...base, specs, sizes, rating, reviewCount, sizeVariantMap };
 }
 
 /* ── Fallback helpers (development only) ─────────────────── */

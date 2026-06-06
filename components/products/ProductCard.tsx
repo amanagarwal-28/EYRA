@@ -66,7 +66,7 @@ export function ProductCard({ product }: { product: Product }) {
         <button
           onClick={(e) => {
             e.preventDefault();
-            if (!inCart) addToCart(product, null);
+            if (!inCart) addToCart(product, null, product.variantId);
           }}
           className={`w-full max-w-[310px] flex items-center justify-center px-8 py-[14px] font-sans font-medium text-[18px] leading-[20px] rounded-full transition-colors duration-200 ${inCart
               ? "bg-black text-white"
