@@ -763,7 +763,31 @@ export function CheckoutClient() {
         address: `${form.addressLine1}, ${form.city}, ${form.state} ${form.pincode}`,
       },
       theme: { color: "#000000" },
-      handler(response: { razorpay_payment_id: string; razorpay_order_id?: string }) {
+      async handler(response: { razorpay_payment_id: string; razorpay_order_id?: string; razorpay_signature?: string }) {
+        // Server-side signature verification before accepting the payment.
+        if (response.razorpay_order_id && response.razorpay_signature) {
+          try {
+            const vRes = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                medusa_cart_id: cartId ?? "",
+              }),
+            });
+            if (!vRes.ok) {
+              setRazorpayError("Payment verification failed. Please contact support with your payment ID.");
+              setPayLoading(false);
+              return;
+            }
+          } catch {
+            setRazorpayError("Could not verify payment. Please contact support.");
+            setPayLoading(false);
+            return;
+          }
+        }
         clearCart();
         router.push(
           `/orders/success?orderId=${oid}&method=prepaid&payment_id=${response.razorpay_payment_id}`
