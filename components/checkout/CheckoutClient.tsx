@@ -41,7 +41,13 @@ type ShippingErrors = Partial<Record<keyof ShippingForm, string>>;
 type TouchedFields = Partial<Record<keyof ShippingForm, boolean>>;
 type PaymentMethod = "cod" | "prepaid";
 type CheckoutStep = 1 | 2 | 3;
-type PincodeStatus = "idle" | "loading" | "valid" | "invalid";
+type PincodeStatus = "idle" | "loading" | "valid" | "invalid" | "unserviceable";
+
+interface ServiceabilityResult {
+  serviceable: boolean;
+  estimatedDays: number;
+  availablePaymentMethods: string[];
+}
 
 declare global {
   interface Window {
@@ -193,12 +199,13 @@ function OrderSidebar({
 
 /* ── Step 1: Shipping ─────────────────────────────────────── */
 function ShippingStep({
-  form, errors, touched, pincodeStatus, onChange, onBlur, onNext,
+  form, errors, touched, pincodeStatus, serviceability, onChange, onBlur, onNext,
 }: {
   form: ShippingForm;
   errors: ShippingErrors;
   touched: TouchedFields;
   pincodeStatus: PincodeStatus;
+  serviceability: ServiceabilityResult | null;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onNext: () => void;
@@ -268,13 +275,35 @@ function ShippingStep({
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
               )}
-              {pincodeStatus === "invalid" && touched.pincode && (
+              {(pincodeStatus === "invalid" || pincodeStatus === "unserviceable") && (
                 <svg className="absolute right-3 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D93025" strokeWidth="2" aria-hidden="true">
                   <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" strokeLinecap="round" />
                 </svg>
               )}
             </div>
             <FieldError msg={touched.pincode ? errors.pincode : undefined} />
+            {/* Serviceability result badge */}
+            {pincodeStatus === "valid" && serviceability?.serviceable && (
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F0FBE8] border border-[#C8EEB8] font-sans text-[11px] font-medium text-[#3D7A1A]">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#47B10A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
+                  Delivery available
+                </span>
+                {serviceability.estimatedDays > 0 && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#F7F7F7] border border-[#E1E1E1] font-sans text-[11px] text-[#626262]">
+                    Est. {serviceability.estimatedDays} {serviceability.estimatedDays === 1 ? "day" : "days"}
+                  </span>
+                )}
+                {serviceability.availablePaymentMethods.includes("cod") && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#F7F7F7] border border-[#E1E1E1] font-sans text-[11px] text-[#626262]">COD available</span>
+                )}
+              </div>
+            )}
+            {pincodeStatus === "unserviceable" && (
+              <p className="mt-2 font-sans text-[12px] text-[#D93025]">
+                Sorry, we don&apos;t deliver to this pincode yet.
+              </p>
+            )}
           </div>
           <div>
             <label className="block font-sans font-normal text-[13px] text-[#5D5D5D] mb-1.5">City</label>
@@ -453,11 +482,12 @@ function ReviewStep({
 
 /* ── Step 3: Payment ──────────────────────────────────────── */
 function PaymentStep({
-  total, shippingForm, paymentMethod, loading, razorpayError,
+  total, shippingForm, paymentMethod, loading, razorpayError, serviceability,
   onSelectMethod, onBack, onPlaceOrder,
 }: {
   total: number; shippingForm: ShippingForm;
   paymentMethod: PaymentMethod | null; loading: boolean; razorpayError: string;
+  serviceability: ServiceabilityResult | null;
   onSelectMethod: (m: PaymentMethod) => void;
   onBack: () => void; onPlaceOrder: () => void;
 }) {
@@ -465,9 +495,21 @@ function PaymentStep({
     <div className="flex flex-col gap-5">
       <h2 className="font-sans font-medium text-[20px] text-black">Select Payment Method</h2>
 
+      {/* Delivery estimate chip when serviceability is confirmed */}
+      {serviceability?.serviceable && serviceability.estimatedDays > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-[#F0FBE8] border border-[#C8EEB8] rounded-2xl">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#47B10A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+          </svg>
+          <p className="font-sans text-[12px] text-[#3D7A1A]">
+            Estimated delivery in <strong>{serviceability.estimatedDays} {serviceability.estimatedDays === 1 ? "day" : "days"}</strong> to {shippingForm.pincode}
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
-        {/* COD */}
-        <button
+        {/* COD — hidden when courier doesn't support it for this pincode */}
+        {(!serviceability || serviceability.availablePaymentMethods.includes("cod")) && <button
           onClick={() => onSelectMethod("cod")}
           className={`flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-colors duration-150 w-full ${
             paymentMethod === "cod" ? "border-black bg-[#FAFAFA]" : "border-[#E1E1E1] hover:border-[#AAAAAA]"
@@ -487,7 +529,7 @@ function PaymentStep({
             <circle cx="12" cy="12" r="3" stroke="#626262" strokeWidth="1.5" />
             <path d="M2 9h20" stroke="#626262" strokeWidth="1.5" />
           </svg>
-        </button>
+        </button>}
 
         {/* Razorpay */}
         <button
@@ -624,6 +666,9 @@ export function CheckoutClient() {
   const [touched, setTouched] = useState<TouchedFields>({});
   const [pincodeStatus, setPincodeStatus] = useState<PincodeStatus>("idle");
 
+  /* Serviceability */
+  const [serviceability, setServiceability] = useState<ServiceabilityResult | null>(null);
+
   /* Payment */
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [payLoading, setPayLoading] = useState(false);
@@ -642,30 +687,36 @@ export function CheckoutClient() {
     }));
   }, [user]);
 
-  /* Pincode auto-lookup */
+  /* Pincode serviceability check — routed through our server to avoid
+     direct third-party browser calls and validate against real courier routes. */
   useEffect(() => {
     if (!/^\d{6}$/.test(form.pincode)) {
       setPincodeStatus("idle");
+      setServiceability(null);
       return;
     }
     setPincodeStatus("loading");
+    setServiceability(null);
     const controller = new AbortController();
-    fetch(`https://api.postalpincode.in/pincode/${form.pincode}`, { signal: controller.signal })
+    fetch("/api/shipping/serviceability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pincode: form.pincode }),
+      signal: controller.signal,
+    })
       .then((r) => r.json())
-      .then(([data]: [{ Status: string; PostOffice?: { District: string; State: string }[] }]) => {
-        if (data.Status === "Success" && data.PostOffice?.length) {
-          const po = data.PostOffice[0];
-          setForm((prev) => ({
-            ...prev,
-            city: prev.city || po.District,
-            state: prev.state || po.State,
-          }));
-          setPincodeStatus("valid");
-        } else {
-          setPincodeStatus("invalid");
-        }
+      .then((data: ServiceabilityResult) => {
+        setServiceability(data);
+        setPincodeStatus(data.serviceable ? "valid" : "unserviceable");
+        // Reset selected payment method if it's no longer available for this pincode.
+        setPaymentMethod((prev) =>
+          prev && !data.availablePaymentMethods.includes(prev) ? null : prev
+        );
       })
-      .catch(() => { /* aborted or network error — stay idle */ });
+      .catch(() => {
+        // Network error — stay idle, don't block the user.
+        setPincodeStatus("idle");
+      });
     return () => controller.abort();
   }, [form.pincode]);
 
@@ -838,6 +889,7 @@ export function CheckoutClient() {
                 errors={shippingErrors}
                 touched={touched}
                 pincodeStatus={pincodeStatus}
+                serviceability={serviceability}
                 onChange={handleChange}
                 onBlur={handleBlur}
                 onNext={handleShippingNext}
@@ -862,6 +914,7 @@ export function CheckoutClient() {
                 paymentMethod={paymentMethod}
                 loading={payLoading}
                 razorpayError={razorpayError}
+                serviceability={serviceability}
                 onSelectMethod={setPaymentMethod}
                 onBack={() => setStep(2)}
                 onPlaceOrder={handlePlaceOrder}
