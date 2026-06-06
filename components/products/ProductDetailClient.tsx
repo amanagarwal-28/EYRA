@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import type { DetailProduct } from "@/lib/products";
+import { useCartStore, useWishlistStore } from "@/store/useStore";
 
 /* ── Inline SVG icons ────────────────────────────── */
 
@@ -111,12 +112,20 @@ const SIZE_CHART = [
 export function ProductDetailClient({ product }: { product: DetailProduct }) {
   const [activeImage, setActiveImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
-  const [wishlist, setWishlist] = useState(false);
-  const [inCart, setInCart] = useState(false);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const [pincode, setPincode] = useState("");
   const [pincodeResult, setPincodeResult] = useState("");
   const touchStartX = useRef<number>(0);
+
+  const addToCart = useCartStore((s) => s.addToCart);
+  const cartItems = useCartStore((s) => s.items);
+  const toggleWishlist = useWishlistStore((s) => s.toggle);
+  const isWishlisted = useWishlistStore((s) => s.isWishlisted);
+
+  const wishlist = isWishlisted(product.id);
+  const inCart = cartItems.some(
+    (i) => i.product.id === product.id && i.size === (product.type === "ring" ? selectedSize : null)
+  );
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
@@ -174,7 +183,7 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
                     </button>
                     <button
                       aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
-                      onClick={() => setWishlist((w) => !w)}
+                      onClick={() => toggleWishlist(product)}
                       className="w-[42px] h-[42px] rounded-full bg-white border border-[#DDDDDD] flex items-center justify-center hover:border-black transition-colors duration-200"
                     >
                       <HeartIcon filled={wishlist} />
@@ -341,7 +350,11 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
                   Buy now
                 </button>
                 <button
-                  onClick={() => setInCart((c) => !c)}
+                  onClick={() => {
+                    if (!inCart) {
+                      addToCart(product, product.type === "ring" ? selectedSize : null);
+                    }
+                  }}
                   className={`flex-1 flex items-center justify-center px-8 py-[14px] font-sans font-medium text-[18px] leading-[20px] rounded-full border transition-colors duration-200 ${
                     inCart
                       ? "bg-black text-white border-black"

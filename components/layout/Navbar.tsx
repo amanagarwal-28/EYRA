@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, X, Search, ShoppingBag, User } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Menu, X, Search, ShoppingBag, User, Heart } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { useCartStore } from "@/store/useStore";
+import { useWishlistStore } from "@/store/useStore";
 
 const NAV_ITEMS = [
   { label: "Collections", href: "/collections" },
@@ -15,12 +18,17 @@ const NAV_ITEMS = [
 export function Navbar() {
   const [scrolled,  setScrolled]  = useState(false);
   const [menuOpen,  setMenuOpen]  = useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+  const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
+  const wishlistCount = useWishlistStore((s) => s.items.length);
 
   useEffect(() => {
+    if (!isHome) return;
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isHome]);
 
   /* Prevent body scroll while mobile menu is open */
   useEffect(() => {
@@ -36,15 +44,20 @@ export function Navbar() {
       <header
         className={[
           "fixed top-0 inset-x-0 z-50 transition-all duration-300",
-          scrolled
-            ? "bg-charcoal/95 backdrop-blur-md border-b border-white/10"
-            : "bg-transparent",
+          isHome
+            ? scrolled
+              ? "bg-charcoal/95 backdrop-blur-md border-b border-white/10"
+              : "bg-transparent"
+            : "bg-white border-b border-[#CFCFCF]",
         ].join(" ")}
         style={{ height: "var(--nav-height)" }}
       >
-        <div className="max-w-screen-xl mx-auto px-6 lg:px-10 h-full flex items-center justify-between text-white">
+        <div className={[
+          "max-w-screen-xl mx-auto px-6 lg:px-10 h-full flex items-center justify-between",
+          isHome ? "text-white" : "text-black",
+        ].join(" ")}>
           {/* Logo */}
-          <Logo variant="light" size="md" />
+          <Logo variant={isHome ? "light" : "dark"} size="md" />
 
           {/* Desktop nav */}
           <nav
@@ -55,7 +68,12 @@ export function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className="text-[0.7rem] font-sans font-normal tracking-[0.18em] uppercase text-pearl hover:text-white transition-colors duration-200"
+                className={[
+                  "text-[0.7rem] font-sans font-normal tracking-[0.18em] uppercase transition-colors duration-200",
+                  isHome
+                    ? "text-pearl hover:text-white"
+                    : "text-[#626262] hover:text-black",
+                ].join(" ")}
               >
                 {label}
               </Link>
@@ -66,29 +84,68 @@ export function Navbar() {
           <div className="flex items-center gap-0.5">
             <button
               aria-label="Search"
-              className="p-2.5 text-pearl hover:text-white transition-colors duration-200"
+              className={[
+                "p-2.5 transition-colors duration-200",
+                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+              ].join(" ")}
             >
               <Search size={17} strokeWidth={1.5} />
             </button>
             <button
               aria-label="Account"
-              className="p-2.5 text-pearl hover:text-white transition-colors duration-200"
+              className={[
+                "p-2.5 transition-colors duration-200",
+                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+              ].join(" ")}
             >
               <User size={17} strokeWidth={1.5} />
             </button>
-            <button
+            <Link
+              href="/wishlist"
+              aria-label="Wishlist"
+              className={[
+                "relative p-2.5 transition-colors duration-200",
+                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+              ].join(" ")}
+            >
+              <Heart size={17} strokeWidth={1.5} />
+              {wishlistCount > 0 && (
+                <span className={[
+                  "absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-sans font-medium leading-none",
+                  isHome ? "bg-white text-black" : "bg-black text-white",
+                ].join(" ")}>
+                  {wishlistCount > 99 ? "99+" : wishlistCount}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/cart"
               aria-label="Cart"
-              className="p-2.5 text-pearl hover:text-white transition-colors duration-200"
+              className={[
+                "relative p-2.5 transition-colors duration-200",
+                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+              ].join(" ")}
             >
               <ShoppingBag size={17} strokeWidth={1.5} />
-            </button>
+              {cartCount > 0 && (
+                <span className={[
+                  "absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-sans font-medium leading-none",
+                  isHome ? "bg-white text-black" : "bg-black text-white",
+                ].join(" ")}>
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
+            </Link>
 
             {/* Hamburger — mobile only */}
             <button
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               aria-controls="mobile-nav"
-              className="p-2.5 text-pearl hover:text-white transition-colors duration-200 md:hidden"
+              className={[
+                "p-2.5 transition-colors duration-200 md:hidden",
+                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+              ].join(" ")}
               onClick={() => setMenuOpen((prev) => !prev)}
             >
               {menuOpen

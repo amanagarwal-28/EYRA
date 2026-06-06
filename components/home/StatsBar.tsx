@@ -9,7 +9,7 @@ const AVATARS = [
 ];
 
 const STATS = [
-  { value: "10K+",  label: "Happy Customers" },
+  { value: "10K+", label: "Happy Customers" },
   { value: "2.5K+", label: "Premium Silver Pieces" },
 ];
 
