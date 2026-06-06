@@ -764,7 +764,8 @@ export function CheckoutClient() {
       },
       theme: { color: "#000000" },
       async handler(response: { razorpay_payment_id: string; razorpay_order_id?: string; razorpay_signature?: string }) {
-        // Server-side signature verification before accepting the payment.
+        // Server-side signature verification + Medusa order creation.
+        let confirmedOrderId = oid; // fallback to client-generated ref
         if (response.razorpay_order_id && response.razorpay_signature) {
           try {
             const vRes = await fetch("/api/razorpay/verify", {
@@ -782,6 +783,9 @@ export function CheckoutClient() {
               setPayLoading(false);
               return;
             }
+            const vData = await vRes.json() as { verified: boolean; medusa_order_id?: string | null };
+            // Use the real Medusa order ID when available.
+            if (vData.medusa_order_id) confirmedOrderId = vData.medusa_order_id;
           } catch {
             setRazorpayError("Could not verify payment. Please contact support.");
             setPayLoading(false);
@@ -790,7 +794,7 @@ export function CheckoutClient() {
         }
         clearCart();
         router.push(
-          `/orders/success?orderId=${oid}&method=prepaid&payment_id=${response.razorpay_payment_id}`
+          `/orders/success?orderId=${confirmedOrderId}&method=prepaid&payment_id=${response.razorpay_payment_id}`
         );
       },
       modal: {
