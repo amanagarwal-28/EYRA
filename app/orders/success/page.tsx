@@ -13,9 +13,11 @@ export default async function OrderSuccessPage({
     orderId?: string;
     method?: string;
     payment_id?: string;
+    awb?: string;
+    courier?: string;
   }>;
 }) {
-  const { orderId, method, payment_id } = await searchParams;
+  const { orderId, method, payment_id, awb, courier } = await searchParams;
   const isPrepaid = method === "prepaid";
 
   if (!orderId) {
@@ -92,6 +94,25 @@ export default async function OrderSuccessPage({
               <span className="font-sans font-normal text-[13px] text-[#626262] break-all">
                 {payment_id}
               </span>
+            </div>
+          </>
+        )}
+
+        {awb && (
+          <>
+            <div className="h-px bg-[#E8E8E8]" />
+            <div className="flex flex-col gap-1">
+              <span className="font-sans font-normal text-[12px] text-[#909090] uppercase tracking-wide">
+                Tracking Number (AWB)
+              </span>
+              <span className="font-sans font-medium text-[15px] text-black tracking-wider">
+                {awb}
+              </span>
+              {courier && (
+                <span className="font-sans font-normal text-[12px] text-[#626262]">
+                  via {courier}
+                </span>
+              )}
             </div>
           </>
         )}

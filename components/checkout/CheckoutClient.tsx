@@ -750,10 +750,48 @@ export function CheckoutClient() {
 
     /* ── COD ─────────────────────────────────────────────────── */
     if (paymentMethod === "cod") {
-      await new Promise((r) => setTimeout(r, 600));
       const oid = generateOrderId();
+      const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+      let awbCode = "";
+      let courierName = "";
+      try {
+        const sRes = await fetch("/api/shipping/create-shipment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eyraOrderRef: oid,
+            paymentMethod: "cod",
+            shipping: {
+              fullName: form.fullName,
+              addressLine1: form.addressLine1,
+              addressLine2: form.addressLine2,
+              city: form.city,
+              state: form.state,
+              pincode: form.pincode,
+              phone: form.phone,
+              email: clerkEmail,
+            },
+            items: items.map((i) => ({
+              name: i.product.name,
+              sku: i.product.id,
+              type: i.product.type,
+              quantity: i.quantity,
+              price: i.product.price,
+            })),
+            subtotal: total,
+          }),
+        });
+        if (sRes.ok) {
+          const sData = await sRes.json() as { awbCode?: string | null; courierName?: string | null };
+          awbCode = sData.awbCode ?? "";
+          courierName = sData.courierName ?? "";
+        }
+      } catch { /* non-fatal — order still proceeds */ }
       clearCart();
-      router.push(`/orders/success?orderId=${oid}&method=cod`);
+      const params = new URLSearchParams({ orderId: oid, method: "cod" });
+      if (awbCode) params.set("awb", awbCode);
+      if (courierName) params.set("courier", courierName);
+      router.push(`/orders/success?${params.toString()}`);
       return;
     }
 
@@ -843,10 +881,54 @@ export function CheckoutClient() {
             return;
           }
         }
+
+        // Create Shiprocket shipment now that payment is captured.
+        let awbCode = "";
+        let courierName = "";
+        try {
+          const sRes = await fetch("/api/shipping/create-shipment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              medusaOrderId: confirmedOrderId,
+              eyraOrderRef: oid,
+              paymentMethod: "prepaid",
+              shipping: {
+                fullName: form.fullName,
+                addressLine1: form.addressLine1,
+                addressLine2: form.addressLine2,
+                city: form.city,
+                state: form.state,
+                pincode: form.pincode,
+                phone: form.phone,
+                email: clerkEmail,
+              },
+              items: items.map((i) => ({
+                name: i.product.name,
+                sku: i.product.id,
+                type: i.product.type,
+                quantity: i.quantity,
+                price: i.product.price,
+              })),
+              subtotal: total,
+            }),
+          });
+          if (sRes.ok) {
+            const sData = await sRes.json() as { awbCode?: string | null; courierName?: string | null };
+            awbCode = sData.awbCode ?? "";
+            courierName = sData.courierName ?? "";
+          }
+        } catch { /* non-fatal */ }
+
         clearCart();
-        router.push(
-          `/orders/success?orderId=${confirmedOrderId}&method=prepaid&payment_id=${response.razorpay_payment_id}`
-        );
+        const params = new URLSearchParams({
+          orderId: confirmedOrderId,
+          method: "prepaid",
+          payment_id: response.razorpay_payment_id,
+        });
+        if (awbCode) params.set("awb", awbCode);
+        if (courierName) params.set("courier", courierName);
+        router.push(`/orders/success?${params.toString()}`);
       },
       modal: {
         ondismiss() {
