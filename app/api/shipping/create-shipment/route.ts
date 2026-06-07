@@ -1,28 +1,10 @@
 import type { NextRequest } from "next/server";
+import { storeConfig } from "@/config/storeConfig";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 const MEDUSA_BASE = (
   process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ?? "http://localhost:9000"
 ).replace(/\/$/, "");
-
-// Jewelry HSN code: 7113 — Articles of jewelry of precious metal (BIS standard)
-const JEWELRY_HSN = "7113";
-// GST rate for silver jewelry (3%)
-const GST_PERCENT = 3;
-
-// Manufacturing weight thresholds per product category (grams)
-const ITEM_WEIGHT_G: Record<string, number> = {
-  ring: 6,      // lightweight cast rings stay under 6 g
-  earring: 6,   // stud/hoop pairs under 6 g
-  chain: 15,    // chains and necklaces up to 15 g
-};
-const DEFAULT_ITEM_WEIGHT_G = 10;
-
-// Shiprocket minimum chargeable weight slab (kg)
-const MIN_SHIP_WEIGHT_KG = 0.5;
-
-// Standard jewellery box dimensions (cm)
-const BOX = { length: 10, breadth: 8, height: 3 };
 
 /* ── Request / Response types ─────────────────────────────── */
 
@@ -84,7 +66,8 @@ function orderDate(): string {
 }
 
 function itemWeightKg(type: string): number {
-  return (ITEM_WEIGHT_G[type] ?? DEFAULT_ITEM_WEIGHT_G) / 1000;
+  const { itemWeightsG, defaultItemWeightG } = storeConfig.shipping;
+  return (itemWeightsG[type] ?? defaultItemWeightG) / 1000;
 }
 
 function totalParcelWeightKg(items: ShipmentItem[]): number {
@@ -92,8 +75,7 @@ function totalParcelWeightKg(items: ShipmentItem[]): number {
     (sum, item) => sum + itemWeightKg(item.type) * item.quantity,
     0
   );
-  // Enforce Shiprocket's minimum chargeable slab
-  return Math.max(MIN_SHIP_WEIGHT_KG, parseFloat(raw.toFixed(3)));
+  return Math.max(storeConfig.shipping.minChargeableWeightKg, parseFloat(raw.toFixed(3)));
 }
 
 /* ── Shiprocket order creation ────────────────────────────── */
@@ -126,14 +108,14 @@ async function createShiprocketOrder(
       units: item.quantity,
       selling_price: item.price,
       discount: 0,
-      tax: GST_PERCENT,
-      hsn: JEWELRY_HSN,
+      tax: storeConfig.jewelry.gstRate,
+      hsn: storeConfig.jewelry.hsnCode,
     })),
 
     payment_method: paymentMethod === "cod" ? "COD" : "Prepaid",
     sub_total: subtotal,
 
-    ...BOX,
+    ...storeConfig.shipping.box,
     weight: totalParcelWeightKg(items),
   };
 
