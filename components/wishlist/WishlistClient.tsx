@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useWishlistStore, useCartStore } from "@/store/useStore";
+import type { WishlistItem } from "@/store/useStore";
 
 function TrashIcon() {
   return (
@@ -21,11 +22,9 @@ export function WishlistClient() {
   const addToCart = useCartStore((s) => s.addToCart);
   const cartItems = useCartStore((s) => s.items);
 
-  function moveToCart(productId: string) {
-    const item = items.find((i) => i.id === productId);
-    if (!item) return;
-    addToCart(item, null);
-    removeFromWishlist(productId);
+  function moveToCart(item: WishlistItem) {
+    addToCart(item.product, null, item.variantId);
+    removeFromWishlist(item.product.id);
   }
 
   if (items.length === 0) {
@@ -59,8 +58,9 @@ export function WishlistClient() {
       </h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-[#CFCFCF]">
-        {items.map((product) => {
-          const inCart = cartItems.some((i) => i.product.id === product.id);
+        {items.map((item) => {
+          const { product, variantId } = item;
+          const inCart = cartItems.some((c) => c.product.id === product.id);
 
           return (
             <div key={product.id} className="relative border-b border-r border-[#CFCFCF] flex flex-col items-center gap-4 py-8 px-6 group hover:bg-[#F7F7F7] transition-colors duration-200">
@@ -104,12 +104,18 @@ export function WishlistClient() {
                     ₹{product.originalPrice.toLocaleString("en-IN")}
                   </span>
                 </div>
+                {/* Surface when no variant could be resolved so the user knows to pick a size on PDP */}
+                {!variantId && (
+                  <p className="font-sans text-[11px] text-[#909090] mt-0.5">
+                    Visit product page to select a size before adding to cart.
+                  </p>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex items-center gap-3 w-full mt-auto">
                 <button
-                  onClick={() => moveToCart(product.id)}
+                  onClick={() => moveToCart(item)}
                   disabled={inCart}
                   className="flex-1 max-w-[310px] flex items-center justify-center px-8 py-[14px] bg-black text-white font-sans font-medium text-[16px] leading-[20px] rounded-full hover:bg-[#1a1a1a] disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
                   style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}

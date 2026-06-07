@@ -250,9 +250,18 @@ export const useCartStore = create<CartStore>()(
   )
 );
 
+/** A wishlist entry pairs the product with the variant that was active when
+ *  the user hearted it. variantId is forwarded to addToCart so Medusa can
+ *  sync the correct SKU without requiring the user to re-select a size. */
+export interface WishlistItem {
+  product: Product;
+  /** Resolved Medusa variant ID (size-specific or product default). */
+  variantId: string | undefined;
+}
+
 interface WishlistStore {
-  items: Product[];
-  toggle: (product: Product) => void;
+  items: WishlistItem[];
+  toggle: (product: Product, variantId?: string) => void;
   isWishlisted: (productId: string) => boolean;
   remove: (productId: string) => void;
 }
@@ -260,24 +269,24 @@ interface WishlistStore {
 export const useWishlistStore = create<WishlistStore>()((set, get) => ({
   items: [],
 
-  toggle(product) {
+  toggle(product, variantId) {
     set((state) => {
-      const exists = state.items.some((i) => i.id === product.id);
+      const exists = state.items.some((i) => i.product.id === product.id);
       return {
         items: exists
-          ? state.items.filter((i) => i.id !== product.id)
-          : [...state.items, product],
+          ? state.items.filter((i) => i.product.id !== product.id)
+          : [...state.items, { product, variantId: variantId ?? product.variantId }],
       };
     });
   },
 
   isWishlisted(productId) {
-    return get().items.some((i) => i.id === productId);
+    return get().items.some((i) => i.product.id === productId);
   },
 
   remove(productId) {
     set((state) => ({
-      items: state.items.filter((i) => i.id !== productId),
+      items: state.items.filter((i) => i.product.id !== productId),
     }));
   },
 }));

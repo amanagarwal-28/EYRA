@@ -183,7 +183,13 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
                     </button>
                     <button
                       aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
-                      onClick={() => toggleWishlist(product)}
+                      onClick={() => {
+                        const variantId =
+                          product.type === "ring" && selectedSize
+                            ? (product.sizeVariantMap?.[String(selectedSize)] ?? product.variantId)
+                            : product.variantId;
+                        toggleWishlist(product, variantId);
+                      }}
                       className="w-[42px] h-[42px] rounded-full bg-white border border-[#DDDDDD] flex items-center justify-center hover:border-black transition-colors duration-200"
                     >
                       <HeartIcon filled={wishlist} />
