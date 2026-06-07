@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
+import { CartSyncBanner } from "./CartSyncBanner";
 import { useCartStore } from "@/store/useStore";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <Footer />
+      <CartSyncBanner />
     </>
   );
 }
