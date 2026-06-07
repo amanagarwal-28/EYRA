@@ -42,6 +42,8 @@ export interface CreateShipmentResult {
   awbCode: string | null;
   courierName: string | null;
   error?: string;
+  /** Non-fatal diagnostic — shipment was created but a background step failed (e.g. Medusa metadata write). */
+  warning?: string;
 }
 
 interface ShiprocketOrderResponse {
@@ -130,7 +132,8 @@ async function createShiprocketOrder(
       cache: "no-store",
     });
     return (await res.json()) as ShiprocketOrderResponse;
-  } catch {
+  } catch (err) {
+    console.error("[Shiprocket] createShiprocketOrder network failure for order", body.eyraOrderRef, ":", err);
     return null;
   }
 }
@@ -140,9 +143,9 @@ async function createShiprocketOrder(
 async function persistToMedusa(
   medusaOrderId: string,
   data: { shipmentId: string; awbCode: string; courierName: string }
-): Promise<void> {
+): Promise<string | null> {
   const adminKey = process.env.MEDUSA_ADMIN_API_KEY;
-  if (!adminKey) return;
+  if (!adminKey) return null;
 
   try {
     await fetch(`${MEDUSA_BASE}/admin/orders/${medusaOrderId}`, {
@@ -160,8 +163,11 @@ async function persistToMedusa(
       }),
       cache: "no-store",
     });
-  } catch {
-    // Non-fatal: shipment is created; metadata persistence can be retried.
+    return null;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[Medusa] persistToMedusa failed for order", medusaOrderId, "— shipment exists but metadata not written:", err);
+    return `Medusa metadata write failed: ${msg}`;
   }
 }
 
@@ -173,7 +179,8 @@ export async function POST(request: NextRequest) {
   let body: Partial<CreateShipmentBody>;
   try {
     body = (await request.json()) as Partial<CreateShipmentBody>;
-  } catch {
+  } catch (err) {
+    console.warn("[create-shipment] Failed to parse request body:", err);
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
@@ -218,9 +225,10 @@ export async function POST(request: NextRequest) {
   const awbCode = srResponse.awb_code ?? null;
   const courierName = srResponse.courier_name ?? null;
 
-  // Persist tracking data back to Medusa order metadata in the background.
+  // Persist tracking data back to Medusa order metadata.
+  let persistWarning: string | null = null;
   if (medusaOrderId && shipmentId) {
-    void persistToMedusa(medusaOrderId, {
+    persistWarning = await persistToMedusa(medusaOrderId, {
       shipmentId,
       awbCode: awbCode ?? "",
       courierName: courierName ?? "",
@@ -239,6 +247,7 @@ export async function POST(request: NextRequest) {
     shipmentId,
     awbCode,
     courierName,
+    ...(persistWarning ? { warning: persistWarning } : {}),
   };
   return Response.json(result);
 }

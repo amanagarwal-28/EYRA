@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
   let body: { pincode?: string };
   try {
     body = (await request.json()) as { pincode?: string };
-  } catch {
+  } catch (err) {
+    console.warn("[Shiprocket/serviceability] Failed to parse request body:", err);
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
@@ -71,8 +72,8 @@ export async function POST(request: NextRequest) {
       }
     );
     shiprocketData = (await res.json()) as ShiprocketServiceabilityResponse;
-  } catch {
-    // Network failure — fail open so checkout isn't blocked.
+  } catch (err) {
+    console.error("[Shiprocket/serviceability] Serviceability fetch failed for pincode", pincode, ":", err);
     const fallback: ServiceabilityResult = {
       serviceable: true,
       estimatedDays: 5,

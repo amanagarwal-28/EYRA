@@ -750,8 +750,8 @@ export function CheckoutClient() {
           prev && !data.availablePaymentMethods.includes(prev) ? null : prev
         );
       })
-      .catch(() => {
-        // Network error — stay idle, don't block the user.
+      .catch((err: unknown) => {
+        console.warn("[EYRA/serviceability] Pincode check failed for", form.pincode, ":", err);
         setPincodeStatus("idle");
       });
     return () => controller.abort();
@@ -823,7 +823,9 @@ export function CheckoutClient() {
           awbCode = sData.awbCode ?? "";
           courierName = sData.courierName ?? "";
         }
-      } catch { /* non-fatal — order still proceeds */ }
+      } catch (err) {
+        console.error("[EYRA/shipment] COD shipment creation failed for order", oid, ":", err);
+      }
       clearCart();
       const params = new URLSearchParams({ orderId: oid, method: "cod" });
       if (awbCode) params.set("awb", awbCode);
@@ -954,7 +956,8 @@ export function CheckoutClient() {
           }
           const vData = await vRes.json() as { verified: boolean; medusa_order_id?: string | null };
           if (vData.medusa_order_id) confirmedOrderId = vData.medusa_order_id;
-        } catch {
+        } catch (err) {
+          console.error("[EYRA/razorpay] Verify request failed for payment", response.razorpay_payment_id, ":", err);
           setRazorpayError("Could not verify payment. Please contact support.");
           setPayLoading(false);
           return;
@@ -996,7 +999,9 @@ export function CheckoutClient() {
             awbCode = sData.awbCode ?? "";
             courierName = sData.courierName ?? "";
           }
-        } catch { /* non-fatal */ }
+        } catch (err) {
+          console.error("[EYRA/shipment] Prepaid shipment creation failed for order", oid, "(medusa:", confirmedOrderId, "):", err);
+        }
 
         clearCart();
         const params = new URLSearchParams({
