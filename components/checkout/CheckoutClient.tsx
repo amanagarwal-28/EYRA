@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,11 +8,6 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useCartStore } from "@/store/useStore";
 import type { CartItem } from "@/store/useStore";
-
-/* ── Constants ────────────────────────────────────────────── */
-const DELIVERY_THRESHOLD = 499;
-const DELIVERY_CHARGE = 99;
-const GST_RATE = 0.03;
 
 const INDIAN_STATES = [
   "Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh",
@@ -49,10 +44,15 @@ interface ServiceabilityResult {
   availablePaymentMethods: string[];
 }
 
-declare global {
-  interface Window {
-    Razorpay: new (opts: Record<string, unknown>) => { open: () => void };
-  }
+/** Server-authoritative totals used throughout all checkout steps. */
+interface DisplayTotals {
+  subtotal: number;
+  tax: number;
+  delivery: number;
+  discount: number;
+  total: number;
+  /** True when Medusa cart hasn't synced yet — values are client estimates. */
+  isEstimate: boolean;
 }
 
 /* ── Validation ───────────────────────────────────────────── */
@@ -137,11 +137,7 @@ function StepIndicator({ current }: { current: CheckoutStep }) {
 }
 
 /* ── Order sidebar ────────────────────────────────────────── */
-function OrderSidebar({
-  items, subtotal, gst, delivery, total,
-}: {
-  items: CartItem[]; subtotal: number; gst: number; delivery: number; total: number;
-}) {
+function OrderSidebar({ items, totals }: { items: CartItem[]; totals: DisplayTotals }) {
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
   return (
     <div
@@ -173,25 +169,41 @@ function OrderSidebar({
       <div className="flex flex-col gap-2.5 text-[13px] font-sans">
         <div className="flex justify-between">
           <span className="text-[#626262]">Subtotal ({totalQty} {totalQty === 1 ? "item" : "items"})</span>
-          <span className="text-black">₹{subtotal.toLocaleString("en-IN")}</span>
+          <span className="text-black">₹{totals.subtotal.toLocaleString("en-IN")}</span>
         </div>
+        {totals.discount > 0 && (
+          <div className="flex justify-between">
+            <span className="text-[#626262]">Discount</span>
+            <span className="text-black">− ₹{totals.discount.toLocaleString("en-IN")}</span>
+          </div>
+        )}
         <div className="flex justify-between">
-          <span className="text-[#626262]">Tax (GST 3%)</span>
-          <span className="text-black">₹{gst.toLocaleString("en-IN")}</span>
+          <span className="text-[#626262]">Tax (GST)</span>
+          <span className="text-black">
+            {totals.isEstimate ? "—" : `₹${totals.tax.toLocaleString("en-IN")}`}
+          </span>
         </div>
         <div className="flex justify-between">
           <span className="text-[#626262]">Delivery</span>
-          {delivery === 0
-            ? <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
-            : <span className="text-black">₹{delivery}</span>}
+          {totals.isEstimate ? (
+            <span className="text-black">—</span>
+          ) : totals.delivery === 0 ? (
+            <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
+          ) : (
+            <span className="text-black">₹{totals.delivery}</span>
+          )}
         </div>
       </div>
 
       <div className="w-full h-px bg-[#DFDFDF]" />
 
       <div className="flex justify-between items-center">
-        <span className="font-sans font-semibold text-[16px] text-black">Total</span>
-        <span className="font-sans font-semibold text-[20px] text-black">₹{total.toLocaleString("en-IN")}</span>
+        <span className="font-sans font-semibold text-[16px] text-black">
+          {totals.isEstimate ? "Estimated Total" : "Total"}
+        </span>
+        <span className="font-sans font-semibold text-[20px] text-black">
+          ₹{totals.total.toLocaleString("en-IN")}
+        </span>
       </div>
     </div>
   );
@@ -369,10 +381,10 @@ function ShippingStep({
 
 /* ── Step 2: Review ───────────────────────────────────────── */
 function ReviewStep({
-  items, shippingForm, subtotal, gst, delivery, total, onBack, onNext,
+  items, shippingForm, totals, onBack, onNext,
 }: {
   items: CartItem[]; shippingForm: ShippingForm;
-  subtotal: number; gst: number; delivery: number; total: number;
+  totals: DisplayTotals;
   onBack: () => void; onNext: () => void;
 }) {
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
@@ -415,7 +427,7 @@ function ReviewStep({
         </div>
       </div>
 
-      {/* Price breakdown */}
+      {/* Price breakdown — all values come from Medusa serverTotals */}
       <div className="rounded-2xl border border-[#E1E1E1] overflow-hidden">
         <div className="bg-[#F7F7F7] px-5 py-3">
           <p className="font-sans font-medium text-[12px] text-[#626262] uppercase tracking-wider">Price Breakdown</p>
@@ -423,22 +435,34 @@ function ReviewStep({
         <div className="px-5 py-4 flex flex-col gap-3 font-sans text-[14px]">
           <div className="flex justify-between">
             <span className="text-[#626262]">Subtotal</span>
-            <span className="text-black">₹{subtotal.toLocaleString("en-IN")}</span>
+            <span className="text-black">₹{totals.subtotal.toLocaleString("en-IN")}</span>
           </div>
+          {totals.discount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-[#626262]">Discount</span>
+              <span className="text-black">− ₹{totals.discount.toLocaleString("en-IN")}</span>
+            </div>
+          )}
           <div className="flex justify-between">
-            <span className="text-[#626262]">Tax (GST 3%)</span>
-            <span className="text-black">₹{gst.toLocaleString("en-IN")}</span>
+            <span className="text-[#626262]">Tax (GST)</span>
+            <span className="text-black">
+              {totals.isEstimate ? "—" : `₹${totals.tax.toLocaleString("en-IN")}`}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#626262]">Delivery</span>
-            {delivery === 0
-              ? <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
-              : <span className="text-black">₹{delivery}</span>}
+            {totals.isEstimate ? (
+              <span className="text-black">—</span>
+            ) : totals.delivery === 0 ? (
+              <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
+            ) : (
+              <span className="text-black">₹{totals.delivery}</span>
+            )}
           </div>
           <div className="h-px bg-[#F0F0F0]" />
           <div className="flex justify-between">
             <span className="font-semibold text-black">Total Payable</span>
-            <span className="font-semibold text-[18px] text-black">₹{total.toLocaleString("en-IN")}</span>
+            <span className="font-semibold text-[18px] text-black">₹{totals.total.toLocaleString("en-IN")}</span>
           </div>
         </div>
       </div>
@@ -482,10 +506,10 @@ function ReviewStep({
 
 /* ── Step 3: Payment ──────────────────────────────────────── */
 function PaymentStep({
-  total, shippingForm, paymentMethod, loading, razorpayError, serviceability,
+  totals, shippingForm, paymentMethod, loading, razorpayError, serviceability,
   onSelectMethod, onBack, onPlaceOrder,
 }: {
-  total: number; shippingForm: ShippingForm;
+  totals: DisplayTotals; shippingForm: ShippingForm;
   paymentMethod: PaymentMethod | null; loading: boolean; razorpayError: string;
   serviceability: ServiceabilityResult | null;
   onSelectMethod: (m: PaymentMethod) => void;
@@ -506,6 +530,7 @@ function PaymentStep({
           </p>
         </div>
       )}
+
 
       <div className="flex flex-col gap-3">
         {/* COD — hidden when courier doesn't support it for this pincode */}
@@ -612,7 +637,7 @@ function PaymentStep({
           ) : paymentMethod === "cod" ? (
             "Place Order"
           ) : (
-            `Pay ₹${total.toLocaleString("en-IN")}`
+            `Pay ₹${totals.total.toLocaleString("en-IN")}`
           )}
         </button>
       </div>
@@ -647,13 +672,25 @@ export function CheckoutClient() {
 
   const items = useCartStore((s) => s.items);
   const cartId = useCartStore((s) => s.cartId);
+  const serverTotals = useCartStore((s) => s.serverTotals);
   const clearCart = useCartStore((s) => s.clearCart);
 
-  /* Pricing derived from store */
-  const subtotal = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
-  const gst = Math.round(subtotal * GST_RATE);
-  const delivery = subtotal > DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
-  const total = subtotal + gst + delivery;
+  // Server-authoritative totals from Medusa. Falls back to a client-side estimate
+  // (no tax/delivery) only when the cart has not yet synced with the backend.
+  const displayTotals = useMemo<DisplayTotals>(() => {
+    if (serverTotals) {
+      return {
+        subtotal: serverTotals.subtotal,
+        tax: serverTotals.taxTotal,
+        delivery: serverTotals.shippingTotal,
+        discount: serverTotals.discountTotal,
+        total: serverTotals.total,
+        isEstimate: false,
+      };
+    }
+    const subtotal = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
+    return { subtotal, tax: 0, delivery: 0, discount: 0, total: subtotal, isEstimate: true };
+  }, [serverTotals, items]);
 
   /* Step machine */
   const [step, setStep] = useState<CheckoutStep>(1);
@@ -778,7 +815,7 @@ export function CheckoutClient() {
               quantity: i.quantity,
               price: i.product.price,
             })),
-            subtotal: total,
+            subtotal: displayTotals.total,
           }),
         });
         if (sRes.ok) {
@@ -835,9 +872,9 @@ export function CheckoutClient() {
     const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
     const clerkName = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
 
-    const rzpOptions: Record<string, unknown> = {
+    const rzpOptions: RazorpayOptions = {
       key,
-      amount: total * 100, // paise
+      amount: displayTotals.total * 100, // paise — always uses Medusa server total
       currency: "INR",
       name: "EYRA",
       description: "Sterling silver jewellery order",
@@ -852,7 +889,7 @@ export function CheckoutClient() {
         address: `${form.addressLine1}, ${form.city}, ${form.state} ${form.pincode}`,
       },
       theme: { color: "#000000" },
-      async handler(response: { razorpay_payment_id: string; razorpay_order_id?: string; razorpay_signature?: string }) {
+      async handler(response: RazorpayPaymentResponse) {
         // Server-side signature verification + Medusa order creation.
         let confirmedOrderId = oid; // fallback to client-generated ref
         if (response.razorpay_order_id && response.razorpay_signature) {
@@ -910,7 +947,7 @@ export function CheckoutClient() {
                 quantity: i.quantity,
                 price: i.product.price,
               })),
-              subtotal: total,
+              subtotal: displayTotals.total,
             }),
           });
           if (sRes.ok) {
@@ -981,17 +1018,14 @@ export function CheckoutClient() {
               <ReviewStep
                 items={items}
                 shippingForm={form}
-                subtotal={subtotal}
-                gst={gst}
-                delivery={delivery}
-                total={total}
+                totals={displayTotals}
                 onBack={() => setStep(1)}
                 onNext={() => setStep(3)}
               />
             )}
             {step === 3 && (
               <PaymentStep
-                total={total}
+                totals={displayTotals}
                 shippingForm={form}
                 paymentMethod={paymentMethod}
                 loading={payLoading}
@@ -1007,10 +1041,7 @@ export function CheckoutClient() {
           {/* Right: sticky order summary */}
           <OrderSidebar
             items={items}
-            subtotal={subtotal}
-            gst={gst}
-            delivery={delivery}
-            total={total}
+            totals={displayTotals}
           />
         </div>
       </div>

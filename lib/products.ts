@@ -1,5 +1,13 @@
 import type { Product } from "@/components/products/types";
 
+if (process.env.NODE_ENV === "production") {
+  throw new Error(
+    "[EYRA] lib/products.ts mock data is disabled in production. " +
+    "All product data must be fetched from the Medusa backend API. " +
+    "Remove every import of this module and replace it with a Medusa /store/products call."
+  );
+}
+
 export interface DetailProduct extends Product {
   specs: string[];
   sizes: number[];

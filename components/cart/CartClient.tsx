@@ -5,11 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCartStore } from "@/store/useStore";
 
-const DELIVERY_THRESHOLD = 499;
-const DELIVERY_CHARGE = 99;
-const DISCOUNT_CODE = "EYRA500";
-const DISCOUNT_AMOUNT = 500;
-
 function TrashIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DE2E2E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -40,15 +35,14 @@ function PlusIcon() {
 
 export function CartClient() {
   const items = useCartStore((s) => s.items);
+  const serverTotals = useCartStore((s) => s.serverTotals);
+  const syncStatus = useCartStore((s) => s.syncStatus);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeFromCart = useCartStore((s) => s.removeFromCart);
 
   const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() =>
     new Set(items.map((i) => `${i.product.id}-${i.size ?? "null"}`))
   );
-  const [discountInput, setDiscountInput] = useState("");
-  const [discountApplied, setDiscountApplied] = useState(false);
-  const [discountError, setDiscountError] = useState("");
 
   function itemKey(productId: string, size: number | null) {
     return `${productId}-${size ?? "null"}`;
@@ -69,37 +63,33 @@ export function CartClient() {
     setCheckedKeys(allChecked ? new Set() : new Set(allKeys));
   }
 
-  const checkedItems = useMemo(
-    () => items.filter((i) => checkedKeys.has(itemKey(i.product.id, i.size))),
-    [items, checkedKeys]
-  );
-
-  const subtotal = checkedItems.reduce(
-    (sum, i) => sum + i.product.price * i.quantity,
-    0
-  );
-  const originalTotal = checkedItems.reduce(
-    (sum, i) => sum + i.product.originalPrice * i.quantity,
-    0
-  );
-  const productDiscount = originalTotal - subtotal;
-  const extraDiscount = discountApplied && subtotal > 0 ? DISCOUNT_AMOUNT : 0;
-  const deliveryCharge = subtotal > DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
-  const total = subtotal - extraDiscount + deliveryCharge;
-
-  function applyDiscount() {
-    if (discountInput.trim().toUpperCase() === DISCOUNT_CODE) {
-      setDiscountApplied(true);
-      setDiscountError("");
-    } else {
-      setDiscountApplied(false);
-      setDiscountError("Invalid discount code.");
-    }
-  }
-
   const allChecked =
     items.length > 0 &&
     items.every((i) => checkedKeys.has(itemKey(i.product.id, i.size)));
+
+  // Server-authoritative totals — fall back to a client-side subtotal estimate
+  // only when the Medusa cart hasn't synced yet (no variantIds or pending sync).
+  const totals = useMemo(() => {
+    if (serverTotals) {
+      return {
+        subtotal: serverTotals.subtotal,
+        discount: serverTotals.discountTotal,
+        delivery: serverTotals.shippingTotal,
+        tax: serverTotals.taxTotal,
+        total: serverTotals.total,
+        isEstimate: false,
+      };
+    }
+    const clientSubtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+    return {
+      subtotal: clientSubtotal,
+      discount: 0,
+      delivery: 0,
+      tax: 0,
+      total: clientSubtotal,
+      isEstimate: true,
+    };
+  }, [serverTotals, items]);
 
   if (items.length === 0) {
     return (
@@ -129,7 +119,6 @@ export function CartClient() {
             <h1 className="font-sans font-medium text-[18px] leading-[27px] text-black">
               Shopping cart
             </h1>
-            {/* Select all */}
             <button
               onClick={toggleAll}
               className="flex items-center gap-2 font-sans font-normal text-[14px] text-[#626262] hover:text-black transition-colors duration-200"
@@ -205,15 +194,12 @@ export function CartClient() {
                       <span className="font-sans font-normal text-[15px] text-[#AAAAAA] line-through">
                         ₹{item.product.originalPrice.toLocaleString("en-IN")}
                       </span>
-                      <span className="font-sans font-normal text-[13px] text-black">
-                        {discountPct}% OFF
-                      </span>
+                      {discountPct > 0 && (
+                        <span className="font-sans font-normal text-[13px] text-black">
+                          {discountPct}% OFF
+                        </span>
+                      )}
                     </div>
-
-                    {/* Delivery label */}
-                    <p className="font-sans font-normal text-[13px]" style={{ color: "#E46C3C" }}>
-                      {item.product.price > DELIVERY_THRESHOLD ? "Free Delivery" : `Delivery charges: ₹${DELIVERY_CHARGE}`}
-                    </p>
                   </div>
 
                   {/* Right: qty stepper + remove */}
@@ -258,101 +244,78 @@ export function CartClient() {
           className="w-full lg:w-[380px] flex-shrink-0 rounded-2xl p-6 flex flex-col gap-4 lg:sticky lg:self-start"
           style={{ background: "#F7F7F7", top: "calc(var(--nav-height) + 2rem)" }}
         >
-          <h2 className="font-sans font-medium text-[18px] leading-[27px] text-black">
-            Order Summary
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-sans font-medium text-[18px] leading-[27px] text-black">
+              Order Summary
+            </h2>
+            {syncStatus === "syncing" && (
+              <div className="w-4 h-4 border-2 border-[#AAAAAA] border-t-black rounded-full animate-spin" aria-label="Syncing cart…" />
+            )}
+          </div>
 
           <div className="flex flex-col gap-3 text-[14px] font-sans font-normal">
-            {/* Estimated total */}
             <div className="flex items-center justify-between">
-              <span className="text-[#000000]">
-                Estimated total ({checkedItems.length} {checkedItems.length === 1 ? "item" : "items"}) :
+              <span className="text-[#626262]">
+                Subtotal ({items.length} {items.length === 1 ? "item" : "items"})
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-[#7D7D7D] line-through">
-                  ₹{originalTotal.toLocaleString("en-IN")}
-                </span>
-                <span className="text-black font-medium">
-                  ₹{subtotal.toLocaleString("en-IN")}
-                </span>
-              </div>
+              <span className="text-black font-medium">
+                ₹{totals.subtotal.toLocaleString("en-IN")}
+              </span>
             </div>
-            {/* Sub total */}
-            <div className="flex items-center justify-between">
-              <span className="text-[#626262]">Sub Total</span>
-              <span className="text-black">₹{subtotal.toLocaleString("en-IN")}</span>
-            </div>
-            {/* Product discount */}
-            <div className="flex items-center justify-between">
-              <span className="text-[#626262]">Product Discount</span>
-              <span className="text-black">− ₹{productDiscount.toLocaleString("en-IN")}</span>
-            </div>
-            {/* Discount code savings */}
-            {discountApplied && (
+
+            {totals.discount > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-[#626262]">Coupon ({DISCOUNT_CODE})</span>
-                <span className="text-black">− ₹{DISCOUNT_AMOUNT.toLocaleString("en-IN")}</span>
+                <span className="text-[#626262]">Discount</span>
+                <span className="text-black">− ₹{totals.discount.toLocaleString("en-IN")}</span>
               </div>
             )}
-            {/* Delivery charge */}
+
             <div className="flex items-center justify-between">
-              <span className="text-[#626262]">Delivery Charge</span>
-              {deliveryCharge === 0 ? (
+              <span className="text-[#626262]">Tax (GST)</span>
+              <span className="text-black">
+                {totals.isEstimate ? "—" : `₹${totals.tax.toLocaleString("en-IN")}`}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-[#626262]">Delivery</span>
+              {totals.isEstimate ? (
+                <span className="text-black">—</span>
+              ) : totals.delivery === 0 ? (
                 <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
               ) : (
-                <span className="text-black">₹{deliveryCharge}</span>
+                <span className="text-black">₹{totals.delivery}</span>
               )}
             </div>
           </div>
 
+          {totals.isEstimate && (
+            <p className="font-sans text-[11px] text-[#909090]">
+              Tax and delivery calculated at checkout.
+            </p>
+          )}
+
           <div className="w-full h-px bg-[#DFDFDF]" />
 
-          {/* Total */}
           <div className="flex items-center justify-between">
-            <span className="font-sans font-semibold text-[16px] text-black">TOTAL</span>
+            <span className="font-sans font-semibold text-[16px] text-black">
+              {totals.isEstimate ? "Estimated Total" : "TOTAL"}
+            </span>
             <span className="font-sans font-semibold text-[18px] text-black">
-              ₹{Math.max(0, total).toLocaleString("en-IN")}
+              ₹{totals.total.toLocaleString("en-IN")}
             </span>
           </div>
 
-          {/* Discount code input */}
-          <div className="flex gap-2 mt-1">
-            <input
-              type="text"
-              placeholder="Discount code"
-              value={discountInput}
-              onChange={(e) => {
-                setDiscountInput(e.target.value);
-                setDiscountError("");
-              }}
-              className="flex-1 px-4 py-2.5 border border-[#DFDFDF] rounded-2xl bg-white font-sans font-normal text-[14px] text-black placeholder:text-[#AAAAAA] outline-none focus:border-black transition-colors duration-200"
-            />
-            <button
-              onClick={applyDiscount}
-              className="px-5 py-2.5 bg-black text-white font-sans font-medium text-[14px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200 whitespace-nowrap"
-            >
-              Apply
-            </button>
-          </div>
-          {discountApplied && (
-            <p className="font-sans font-normal text-[12px]" style={{ color: "#47B10A" }}>
-              Discount applied! ₹{DISCOUNT_AMOUNT} off.
-            </p>
-          )}
-          {discountError && (
-            <p className="font-sans font-normal text-[12px] text-[#DE2E2E]">{discountError}</p>
-          )}
-
-          {/* Proceed to pay */}
-          <button
-            disabled={checkedItems.length === 0}
-            className="w-full flex items-center justify-center py-[14px] bg-black text-white font-sans font-medium text-[18px] rounded-full hover:bg-[#1a1a1a] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200"
+          <Link
+            href="/checkout"
+            className={`w-full flex items-center justify-center py-[14px] bg-black text-white font-sans font-medium text-[18px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200 ${
+              items.length === 0 ? "pointer-events-none opacity-40" : ""
+            }`}
             style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
           >
             Proceed to pay
-          </button>
+          </Link>
 
-          {/* View refund policy */}
           <div className="text-center">
             <Link
               href="/refund-policy"
