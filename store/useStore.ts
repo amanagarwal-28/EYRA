@@ -266,27 +266,35 @@ interface WishlistStore {
   remove: (productId: string) => void;
 }
 
-export const useWishlistStore = create<WishlistStore>()((set, get) => ({
-  items: [],
+export const useWishlistStore = create<WishlistStore>()(
+  persist(
+    (set, get) => ({
+      items: [],
 
-  toggle(product, variantId) {
-    set((state) => {
-      const exists = state.items.some((i) => i.product.id === product.id);
-      return {
-        items: exists
-          ? state.items.filter((i) => i.product.id !== product.id)
-          : [...state.items, { product, variantId: variantId ?? product.variantId }],
-      };
-    });
-  },
+      toggle(product, variantId) {
+        set((state) => {
+          const exists = state.items.some((i) => i.product.id === product.id);
+          return {
+            items: exists
+              ? state.items.filter((i) => i.product.id !== product.id)
+              : [...state.items, { product, variantId: variantId ?? product.variantId }],
+          };
+        });
+      },
 
-  isWishlisted(productId) {
-    return get().items.some((i) => i.product.id === productId);
-  },
+      isWishlisted(productId) {
+        return get().items.some((i) => i.product.id === productId);
+      },
 
-  remove(productId) {
-    set((state) => ({
-      items: state.items.filter((i) => i.product.id !== productId),
-    }));
-  },
-}));
+      remove(productId) {
+        set((state) => ({
+          items: state.items.filter((i) => i.product.id !== productId),
+        }));
+      },
+    }),
+    {
+      name: "eyra-wishlist-storage",
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
