@@ -848,22 +848,52 @@ export function CheckoutClient() {
       return;
     }
 
-    // Initialize Medusa payment session to get server-generated Razorpay order_id
+    // A Medusa cart session is required to create a verified Razorpay order.
+    if (!cartId) {
+      console.error("[EYRA Security] Prepaid checkout attempted with no active cart ID.");
+      setRazorpayError("Your cart session has expired. Please refresh the page and try again.");
+      setPayLoading(false);
+      return;
+    }
+
+    // Obtain a server-generated Razorpay order_id from Medusa.
+    // This token is what makes HMAC signature verification possible —
+    // Razorpay includes razorpay_signature in the response only when order_id is present.
     let razorpayOrderId: string | null = null;
-    if (cartId) {
-      try {
-        const res = await fetch("/api/razorpay/create-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cartId }),
-        });
-        if (res.ok) {
-          const data = await res.json() as { razorpayOrderId?: string | null };
-          razorpayOrderId = data.razorpayOrderId ?? null;
-        }
-      } catch {
-        // Non-fatal — Razorpay works without a server order_id for basic checkout
+    try {
+      const res = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartId }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { razorpayOrderId?: string | null };
+        razorpayOrderId = data.razorpayOrderId ?? null;
+      } else {
+        console.error(`[EYRA Security] create-order API returned ${res.status} — cannot proceed.`);
       }
+    } catch (err) {
+      console.error("[EYRA Security] create-order request failed:", err);
+      setRazorpayError("Payment initialisation failed. Please try again or use Cash on Delivery.");
+      setPayLoading(false);
+      return;
+    }
+
+    // Hard block: without a server-generated order_id, Razorpay omits razorpay_signature
+    // from the payment response, which silently skips HMAC verification and allows a
+    // spoofed payment_id to be accepted as a completed order.
+    if (!razorpayOrderId) {
+      console.error(
+        "[EYRA Security] TRANSACTION BLOCKED — Razorpay order_id is null. " +
+        "The Razorpay provider is likely not registered in Medusa. " +
+        `Cart: ${cartId}, Amount: ₹${displayTotals.total}. ` +
+        "Opening the checkout modal without order_id would bypass cryptographic signature verification."
+      );
+      setRazorpayError(
+        "Payment Gateway configuration mismatch. Transaction halted. Please use Cash on Delivery or contact support."
+      );
+      setPayLoading(false);
+      return;
     }
 
     const oid = generateOrderId();
@@ -878,7 +908,7 @@ export function CheckoutClient() {
       currency: "INR",
       name: "EYRA",
       description: "Sterling silver jewellery order",
-      ...(razorpayOrderId ? { order_id: razorpayOrderId } : {}),
+      order_id: razorpayOrderId, // guaranteed non-null — hard-blocked above
       prefill: {
         name: form.fullName || clerkName,
         email: clerkEmail,
@@ -890,33 +920,44 @@ export function CheckoutClient() {
       },
       theme: { color: "#000000" },
       async handler(response: RazorpayPaymentResponse) {
-        // Server-side signature verification + Medusa order creation.
-        let confirmedOrderId = oid; // fallback to client-generated ref
-        if (response.razorpay_order_id && response.razorpay_signature) {
-          try {
-            const vRes = await fetch("/api/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                medusa_cart_id: cartId ?? "",
-              }),
-            });
-            if (!vRes.ok) {
-              setRazorpayError("Payment verification failed. Please contact support with your payment ID.");
-              setPayLoading(false);
-              return;
-            }
-            const vData = await vRes.json() as { verified: boolean; medusa_order_id?: string | null };
-            // Use the real Medusa order ID when available.
-            if (vData.medusa_order_id) confirmedOrderId = vData.medusa_order_id;
-          } catch {
-            setRazorpayError("Could not verify payment. Please contact support.");
+        // order_id was sent to Razorpay, so the response must carry both
+        // razorpay_order_id and razorpay_signature. A missing signature here
+        // means the response was tampered with before reaching this handler.
+        if (!response.razorpay_order_id || !response.razorpay_signature) {
+          console.error(
+            "[EYRA Security] Payment response is missing order_id or signature. " +
+            "This may indicate a tampered callback. " +
+            `payment_id: ${response.razorpay_payment_id}`
+          );
+          setRazorpayError("Payment verification failed. Please contact support with your payment ID.");
+          setPayLoading(false);
+          return;
+        }
+
+        // Server-side HMAC signature verification + Medusa order creation.
+        let confirmedOrderId = oid;
+        try {
+          const vRes = await fetch("/api/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              medusa_cart_id: cartId,
+            }),
+          });
+          if (!vRes.ok) {
+            setRazorpayError("Payment verification failed. Please contact support with your payment ID.");
             setPayLoading(false);
             return;
           }
+          const vData = await vRes.json() as { verified: boolean; medusa_order_id?: string | null };
+          if (vData.medusa_order_id) confirmedOrderId = vData.medusa_order_id;
+        } catch {
+          setRazorpayError("Could not verify payment. Please contact support.");
+          setPayLoading(false);
+          return;
         }
 
         // Create Shiprocket shipment now that payment is captured.
