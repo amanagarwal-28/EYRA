@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -128,6 +129,9 @@ async function deliverTicket(ticket: TicketBody): Promise<void> {
 /* ── Route handler ────────────────────────────────────────── */
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, "support_ticket", 3);
+  if (rateLimitResponse) return rateLimitResponse;
+
   let body: Partial<TicketBody>;
   try {
     body = (await request.json()) as Partial<TicketBody>;

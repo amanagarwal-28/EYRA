@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -112,6 +113,9 @@ async function deliverSubscription(email: string): Promise<void> {
 /* ── Route handler ────────────────────────────────────────── */
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, "newsletter_subscribe", 5);
+  if (rateLimitResponse) return rateLimitResponse;
+
   let body: { email?: string };
   try {
     body = (await request.json()) as { email?: string };
