@@ -1,37 +1,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 
+import { completeCart } from "@/lib/medusa-order";
+
 interface VerifyBody {
   razorpay_order_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
   medusa_cart_id: string;
-}
-
-interface MedusaCompleteResponse {
-  type: "order" | "cart" | "swap";
-  order?: { id: string; display_id?: number };
-}
-
-async function completeMedusaCart(cartId: string): Promise<string | null> {
-  const baseUrl = (
-    process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ?? "http://localhost:9000"
-  ).replace(/\/$/, "");
-  const pubKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? "";
-
-  const res = await fetch(`${baseUrl}/store/carts/${cartId}/complete`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(pubKey ? { "x-publishable-api-key": pubKey } : {}),
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) return null;
-
-  const data = (await res.json()) as MedusaCompleteResponse;
-  return data.type === "order" ? (data.order?.id ?? null) : null;
 }
 
 export async function POST(request: NextRequest) {
@@ -78,12 +54,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Signature is valid — convert the Medusa cart into a confirmed order.
-  const medusaOrderId = await completeMedusaCart(medusa_cart_id);
+  const { orderId: medusaOrderId } = await completeCart(medusa_cart_id);
 
   if (!medusaOrderId) {
     // Payment was real but order creation failed (e.g. Medusa backend down).
     // Return verified=true so the client can still reach the success page, but
     // flag the missing order ID so support can investigate if needed.
+    // /api/razorpay/webhook is the recovery path: Razorpay will redeliver
+    // payment.captured and the cart gets completed server-side.
     return Response.json({
       verified: true,
       medusa_order_id: null,

@@ -1,21 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
 import type { NextRequest } from "next/server";
-
-/**
- * Module-level Redis client — reused across all rate-limit checks.
- * Null when Upstash env vars are absent (dev/staging without Redis).
- * Configure via:
- *   UPSTASH_REDIS_REST_URL   — REST endpoint from the Upstash console
- *   UPSTASH_REDIS_REST_TOKEN — read-write token (server-only, never NEXT_PUBLIC_)
- */
-const redis =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      })
-    : null;
+import { redis } from "@/lib/redis";
 
 const TOO_MANY_REQUESTS = {
   error: "Submission frequency exceeded. Please try again later.",

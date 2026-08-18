@@ -919,6 +919,10 @@ export function CheckoutClient() {
       notes: {
         order_ref: oid,
         address: `${form.addressLine1}, ${form.city}, ${form.state} ${form.pincode}`,
+        // Fallback cart reference for /api/razorpay/webhook when the
+        // server-side mapping is unavailable (no Upstash configured). Treated
+        // as untrusted there — it is amount-checked before completing.
+        medusa_cart_id: cartId,
       },
       theme: { color: "#000000" },
       async handler(response: RazorpayPaymentResponse) {

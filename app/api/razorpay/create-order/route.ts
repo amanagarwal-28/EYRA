@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rememberCartForRazorpayOrder } from "@/lib/razorpay-store";
 
 const BASE_URL = (
   process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ?? "http://localhost:9000"
@@ -81,6 +82,13 @@ export async function POST(req: NextRequest) {
     // `session.data.id` is the Razorpay order_id (e.g. "order_NbEkof23W")
     const razorpayOrderId =
       typeof session?.data?.id === "string" ? session.data.id : null;
+
+    // Bind the Razorpay order to this cart while both IDs are server-derived.
+    // /api/razorpay/webhook relies on this to recover an order when the
+    // customer's browser never makes it back to /api/razorpay/verify.
+    if (razorpayOrderId) {
+      await rememberCartForRazorpayOrder(razorpayOrderId, cartId);
+    }
 
     return NextResponse.json({
       razorpayOrderId,
