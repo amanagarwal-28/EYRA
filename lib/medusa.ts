@@ -138,6 +138,29 @@ async function medusaFetch<T>(
   }
 }
 
+/**
+ * Resolve the Medusa region ID for CURRENCY_CODE.
+ *
+ * The Store API's /store/products endpoint takes `region_id`, not
+ * `currency_code` — passing currency_code directly is rejected as an
+ * unrecognized param. Cached at module scope since regions rarely change.
+ */
+let cachedRegionId: string | null = null;
+
+async function getRegionId(): Promise<string | undefined> {
+  if (cachedRegionId) return cachedRegionId;
+
+  const data = await medusaFetch<{ regions: { id: string; currency_code: string }[] }>(
+    "/store/regions",
+    { limit: "100" }
+  );
+  if (!data) return undefined;
+
+  const region = data.regions.find((r) => r.currency_code === CURRENCY_CODE) ?? data.regions[0];
+  if (region) cachedRegionId = region.id;
+  return cachedRegionId ?? undefined;
+}
+
 /* ── Normalizers ──────────────────────────────────────────── */
 
 /**
@@ -293,9 +316,11 @@ async function mockDetailProduct(handle: string): Promise<DetailProduct | null> 
  * so the UI works before Medusa is wired up.
  */
 export async function getProducts(): Promise<Product[]> {
+  const regionId = await getRegionId();
+
   const data = await medusaFetch<MedusaListResponse>("/store/products", {
     limit: "100",
-    currency_code: CURRENCY_CODE,
+    ...(regionId ? { region_id: regionId } : {}),
     fields: [
       "id", "title", "handle", "description", "thumbnail",
       "*images", "*type", "*tags", "*variants", "*variants.calculated_price",
@@ -324,10 +349,12 @@ export async function getProductByHandle(handle: string): Promise<DetailProduct 
     "*variants", "*variants.options", "*variants.calculated_price",
   ].join(",");
 
+  const regionId = await getRegionId();
+
   // Primary: query by handle
   const byHandle = await medusaFetch<MedusaListResponse>("/store/products", {
     handle,
-    currency_code: CURRENCY_CODE,
+    ...(regionId ? { region_id: regionId } : {}),
     fields: expandFields,
   });
 
@@ -335,7 +362,7 @@ export async function getProductByHandle(handle: string): Promise<DetailProduct 
 
   // Secondary: handle might actually be a Medusa product ID (prod_01...)
   const byId = await medusaFetch<MedusaSingleResponse>(`/store/products/${handle}`, {
-    currency_code: CURRENCY_CODE,
+    ...(regionId ? { region_id: regionId } : {}),
     fields: expandFields,
   });
 
