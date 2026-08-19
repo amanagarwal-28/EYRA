@@ -261,24 +261,40 @@ export interface WishlistItem {
 
 interface WishlistStore {
   items: WishlistItem[];
+  hasSynced: boolean;
   toggle: (product: Product, variantId?: string) => void;
   isWishlisted: (productId: string) => boolean;
   remove: (productId: string) => void;
+  initWishlist: () => Promise<void>;
+}
+
+/** Push the current wishlist to Medusa. No-ops server-side for guests/unsynced customers. */
+function syncWishlist(items: WishlistItem[]) {
+  fetch("/api/wishlist", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: items.map((i) => ({ productId: i.product.id, variantId: i.variantId })),
+    }),
+  }).catch((err) => {
+    console.error("[wishlist] sync failed:", err);
+  });
 }
 
 export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
       items: [],
+      hasSynced: false,
 
       toggle(product, variantId) {
         set((state) => {
           const exists = state.items.some((i) => i.product.id === product.id);
-          return {
-            items: exists
-              ? state.items.filter((i) => i.product.id !== product.id)
-              : [...state.items, { product, variantId: variantId ?? product.variantId }],
-          };
+          const items = exists
+            ? state.items.filter((i) => i.product.id !== product.id)
+            : [...state.items, { product, variantId: variantId ?? product.variantId }];
+          syncWishlist(items);
+          return { items };
         });
       },
 
@@ -287,14 +303,49 @@ export const useWishlistStore = create<WishlistStore>()(
       },
 
       remove(productId) {
-        set((state) => ({
-          items: state.items.filter((i) => i.product.id !== productId),
-        }));
+        set((state) => {
+          const items = state.items.filter((i) => i.product.id !== productId);
+          syncWishlist(items);
+          return { items };
+        });
+      },
+
+      /**
+       * Reconcile with the server wishlist once per session, after sign-in.
+       * Merges by product ID rather than replacing outright, so items a guest
+       * favourited before logging in aren't lost — then pushes the merged
+       * result back so the server reflects it too.
+       */
+      async initWishlist() {
+        if (get().hasSynced) return;
+        set({ hasSynced: true });
+
+        try {
+          const res = await fetch("/api/wishlist");
+          if (!res.ok) return;
+          const data = (await res.json()) as { items?: WishlistItem[] };
+          const serverItems = data.items ?? [];
+          if (serverItems.length === 0) return;
+
+          set((state) => {
+            const merged = [...state.items];
+            for (const serverItem of serverItems) {
+              if (!merged.some((i) => i.product.id === serverItem.product.id)) {
+                merged.push(serverItem);
+              }
+            }
+            if (merged.length !== state.items.length) syncWishlist(merged);
+            return { items: merged };
+          });
+        } catch (err) {
+          console.error("[wishlist] init sync failed:", err);
+        }
       },
     }),
     {
       name: "eyra-wishlist-storage",
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ items: state.items }),
     }
   )
 );

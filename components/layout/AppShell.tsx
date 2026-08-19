@@ -5,15 +5,17 @@ import { usePathname } from "next/navigation";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { CartSyncBanner } from "./CartSyncBanner";
-import { useCartStore } from "@/store/useStore";
+import { useCartStore, useWishlistStore } from "@/store/useStore";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const initCart = useCartStore((s) => s.initCart);
+  const initWishlist = useWishlistStore((s) => s.initWishlist);
 
   useEffect(() => {
     initCart();
-  }, [initCart]);
+    initWishlist();
+  }, [initCart, initWishlist]);
   const isAuth =
     pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
 
