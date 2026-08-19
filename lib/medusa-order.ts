@@ -36,7 +36,7 @@ interface RawCartResponse {
 
 export interface CartSnapshot {
   id: string;
-  /** Total in the smallest currency unit (paise for INR), as Medusa stores it. */
+  /** Total in rupees (Medusa v2 stores/returns major units, not paise). */
   total: number;
   currencyCode: string;
   /** Set once the cart has become an order; null while the cart is still open. */

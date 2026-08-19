@@ -133,8 +133,9 @@ function formatDate(iso: string): string {
   });
 }
 
-function formatAmount(paise: number): string {
-  return `₹${Math.round(paise / 100).toLocaleString("en-IN")}`;
+/** Medusa v2 returns order amounts in rupees, not paise. */
+function formatAmount(amount: number): string {
+  return `₹${Math.round(amount).toLocaleString("en-IN")}`;
 }
 
 type TrackStep = {

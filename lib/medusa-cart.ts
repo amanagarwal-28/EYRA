@@ -15,8 +15,10 @@ const PUB_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? "";
 /** localStorage key for persisting the cart ID across browser sessions. */
 export const CART_ID_KEY = "eyra_cart_id";
 
-/** Medusa stores amounts in the smallest currency unit (paise for INR). */
-const AMOUNT_DIVISOR = 100;
+/**
+ * Medusa v2 stores/returns amounts in MAJOR units, not the smallest currency
+ * unit — ₹2,499 is `2499`, not `249900`.
+ */
 
 /* ── Raw Medusa cart types ────────────────────────────────── */
 
@@ -57,7 +59,7 @@ export interface CartLineItemSummary {
   thumbnail: string | null;
 }
 
-/** Server-confirmed totals — all values already divided by AMOUNT_DIVISOR (rupees). */
+/** Server-confirmed totals — rupees, as returned by Medusa. */
 export interface CartTotals {
   subtotal: number;
   taxTotal: number;
@@ -109,11 +111,11 @@ async function cartFetch<T>(path: string, init?: RequestInit): Promise<T | null>
 
 function normalizeTotals(cart: RawCart): CartTotals {
   return {
-    subtotal: Math.round(cart.subtotal / AMOUNT_DIVISOR),
-    taxTotal: Math.round(cart.tax_total / AMOUNT_DIVISOR),
-    shippingTotal: Math.round(cart.shipping_total / AMOUNT_DIVISOR),
-    discountTotal: Math.round(cart.discount_total / AMOUNT_DIVISOR),
-    total: Math.round(cart.total / AMOUNT_DIVISOR),
+    subtotal: Math.round(cart.subtotal),
+    taxTotal: Math.round(cart.tax_total),
+    shippingTotal: Math.round(cart.shipping_total),
+    discountTotal: Math.round(cart.discount_total),
+    total: Math.round(cart.total),
   };
 }
 
@@ -122,8 +124,8 @@ function normalizeLineItems(items: RawLineItem[]): CartLineItemSummary[] {
     id: i.id,
     variantId: i.variant_id,
     quantity: i.quantity,
-    unitPrice: Math.round(i.unit_price / AMOUNT_DIVISOR),
-    subtotal: Math.round(i.subtotal / AMOUNT_DIVISOR),
+    unitPrice: Math.round(i.unit_price),
+    subtotal: Math.round(i.subtotal),
     title: i.title,
     thumbnail: i.thumbnail,
   }));

@@ -196,10 +196,11 @@ export async function POST(request: NextRequest) {
 
   // Only enforced on the untrusted resolution path: without it, a spoofed
   // `notes.medusa_cart_id` could point a small payment at an expensive cart.
-  if (cartSource === "notes" && snapshot.total !== payment.amount) {
+  // Razorpay reports payment.amount in paise; snapshot.total is in rupees.
+  if (cartSource === "notes" && snapshot.total * 100 !== payment.amount) {
     console.error(
       "[EYRA Security] TRANSACTION BLOCKED — amount mismatch on notes-resolved cart. " +
-      `payment: ${payment.id}, paid: ${payment.amount}, cart ${cartId} owes: ${snapshot.total}. ` +
+      `payment: ${payment.id}, paid: ₹${payment.amount / 100}, cart ${cartId} owes: ₹${snapshot.total}. ` +
       "Cart was NOT completed."
     );
     await releasePayment(payment.id);

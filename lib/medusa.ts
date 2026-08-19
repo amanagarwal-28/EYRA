@@ -21,10 +21,10 @@ const BASE_URL = (
 const PUB_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? "";
 
 /**
- * Medusa stores monetary amounts in the smallest currency unit.
- * For INR (paise): ₹2,499 is stored as 249900.
+ * Medusa v2 stores/returns amounts in MAJOR units, not the smallest currency
+ * unit — ₹2,499 is `2499`, not `249900`. (Confirmed against the installed
+ * @medusajs/pricing Price model and Medusa's own demo seed script.)
  */
-const AMOUNT_DIVISOR = 100;
 const CURRENCY_CODE = "inr";
 
 /* ── Raw Medusa Store API v2 shapes ───────────────────────── */
@@ -205,11 +205,11 @@ function extractPrice(variants: MedusaVariant[]): {
     return { price: 0, originalPrice: 0, cheapestVariantId: cheapest.id };
   }
 
-  const price = Math.round(cheapest.calculated_price.calculated_amount / AMOUNT_DIVISOR);
+  const price = Math.round(cheapest.calculated_price.calculated_amount);
   const originalRaw = cheapest.calculated_price.original_amount;
   const originalPrice =
     originalRaw > cheapest.calculated_price.calculated_amount
-      ? Math.round(originalRaw / AMOUNT_DIVISOR)
+      ? Math.round(originalRaw)
       : Math.round(price * 1.6); // synthetic MRP if no compare-at price set
 
   return { price, originalPrice, cheapestVariantId: cheapest.id };
