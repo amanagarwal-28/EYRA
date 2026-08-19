@@ -62,7 +62,8 @@ async function addViaMedusa(email: string): Promise<void> {
   // Try to find an existing customer first to avoid duplicates
   const searchRes = await fetch(
     `${base}/admin/customers?email=${encodeURIComponent(email)}&limit=1&fields=id`,
-    { headers: { "x-medusa-access-token": key }, cache: "no-store" }
+    // Secret API keys (sk_...) authenticate via HTTP Basic, not this header.
+    { headers: { Authorization: `Basic ${key}` }, cache: "no-store" }
   );
 
   if (searchRes.ok) {
@@ -78,7 +79,7 @@ async function addViaMedusa(email: string): Promise<void> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-medusa-access-token": key,
+      Authorization: `Basic ${key}`,
     },
     body: JSON.stringify({
       email,

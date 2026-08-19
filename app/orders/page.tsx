@@ -48,7 +48,8 @@ async function fetchCustomerOrders(medusaCustomerId: string): Promise<MedusaOrde
     const res = await fetch(
       `${base}/admin/orders?customer_id=${encodeURIComponent(medusaCustomerId)}&limit=20&order=-created_at`,
       {
-        headers: { "x-medusa-access-token": key },
+        // Secret API keys (sk_...) authenticate via HTTP Basic, not this header.
+        headers: { Authorization: `Basic ${key}` },
         cache: "no-store",
       }
     );

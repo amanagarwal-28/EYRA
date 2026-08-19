@@ -54,7 +54,10 @@ async function adminFetch<T>(
       ...init,
       headers: {
         "Content-Type": "application/json",
-        "x-medusa-access-token": ADMIN_KEY,
+        // Secret API keys (sk_...) authenticate via HTTP Basic, not a
+        // custom header or Bearer — confirmed against Medusa's own
+        // authenticate-middleware, which parses `Authorization: Basic sk_...`.
+        Authorization: `Basic ${ADMIN_KEY}`,
         ...(init?.headers ?? {}),
       },
       // Never cache Admin API responses

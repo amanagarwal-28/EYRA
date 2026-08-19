@@ -83,7 +83,8 @@ async function fetchOrder(orderId: string): Promise<MedusaOrder | null> {
     // customer_id isn't in Medusa's default retrieve fields — request it
     // explicitly so ownership can be verified before rendering the order.
     const res = await fetch(`${ADMIN_BASE}/admin/orders/${orderId}?fields=+customer_id`, {
-      headers: { "x-medusa-access-token": key },
+      // Secret API keys (sk_...) authenticate via HTTP Basic, not this header.
+      headers: { Authorization: `Basic ${key}` },
       cache: "no-store",
     });
     if (!res.ok) return null;

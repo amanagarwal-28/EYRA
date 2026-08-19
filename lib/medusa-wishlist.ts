@@ -35,7 +35,9 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T | null
       ...init,
       headers: {
         "Content-Type": "application/json",
-        "x-medusa-access-token": ADMIN_KEY,
+        // Secret API keys (sk_...) authenticate via HTTP Basic, not a
+        // custom header or Bearer — see lib/medusa-customer.ts for detail.
+        Authorization: `Basic ${ADMIN_KEY}`,
         ...(init?.headers ?? {}),
       },
       cache: "no-store",

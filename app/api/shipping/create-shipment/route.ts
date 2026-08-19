@@ -152,7 +152,8 @@ async function persistToMedusa(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-medusa-access-token": adminKey,
+        // Secret API keys (sk_...) authenticate via HTTP Basic, not this header.
+        Authorization: `Basic ${adminKey}`,
       },
       body: JSON.stringify({
         metadata: {
