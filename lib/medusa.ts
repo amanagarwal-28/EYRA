@@ -122,8 +122,9 @@ async function medusaFetch<T>(
         ...(PUB_KEY ? { "x-publishable-api-key": PUB_KEY } : {}),
         ...(init?.headers ?? {}),
       },
-      // ISR: revalidate cached response every 60 seconds
-      next: { revalidate: 60 },
+      // ISR: revalidate every 60s, or on-demand via /api/revalidate when the
+      // caller tags the request (see getProducts/getProductByHandle).
+      next: { revalidate: 60, ...(init?.next ?? {}) },
     });
 
     if (!res.ok) {
@@ -318,14 +319,18 @@ async function mockDetailProduct(handle: string): Promise<DetailProduct | null> 
 export async function getProducts(): Promise<Product[]> {
   const regionId = await getRegionId();
 
-  const data = await medusaFetch<MedusaListResponse>("/store/products", {
-    limit: "100",
-    ...(regionId ? { region_id: regionId } : {}),
-    fields: [
-      "id", "title", "handle", "description", "thumbnail",
-      "*images", "*type", "*tags", "*variants", "*variants.calculated_price",
-    ].join(","),
-  });
+  const data = await medusaFetch<MedusaListResponse>(
+    "/store/products",
+    {
+      limit: "100",
+      ...(regionId ? { region_id: regionId } : {}),
+      fields: [
+        "id", "title", "handle", "description", "thumbnail",
+        "*images", "*type", "*tags", "*variants", "*variants.calculated_price",
+      ].join(","),
+    },
+    { next: { tags: ["products"] } }
+  );
 
   if (!data) {
     if (process.env.NODE_ENV !== "production") return mockProducts();
@@ -352,19 +357,27 @@ export async function getProductByHandle(handle: string): Promise<DetailProduct 
   const regionId = await getRegionId();
 
   // Primary: query by handle
-  const byHandle = await medusaFetch<MedusaListResponse>("/store/products", {
-    handle,
-    ...(regionId ? { region_id: regionId } : {}),
-    fields: expandFields,
-  });
+  const byHandle = await medusaFetch<MedusaListResponse>(
+    "/store/products",
+    {
+      handle,
+      ...(regionId ? { region_id: regionId } : {}),
+      fields: expandFields,
+    },
+    { next: { tags: ["products"] } }
+  );
 
   if (byHandle?.products[0]) return toDetailProduct(byHandle.products[0]);
 
   // Secondary: handle might actually be a Medusa product ID (prod_01...)
-  const byId = await medusaFetch<MedusaSingleResponse>(`/store/products/${handle}`, {
-    ...(regionId ? { region_id: regionId } : {}),
-    fields: expandFields,
-  });
+  const byId = await medusaFetch<MedusaSingleResponse>(
+    `/store/products/${handle}`,
+    {
+      ...(regionId ? { region_id: regionId } : {}),
+      fields: expandFields,
+    },
+    { next: { tags: ["products"] } }
+  );
 
   if (byId?.product) return toDetailProduct(byId.product);
 
