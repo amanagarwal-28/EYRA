@@ -787,8 +787,48 @@ export function CheckoutClient() {
 
     /* ── COD ─────────────────────────────────────────────────── */
     if (paymentMethod === "cod") {
+      if (!cartId) {
+        console.error("[EYRA] COD checkout attempted with no active cart ID.");
+        setRazorpayError("Your cart session has expired. Please refresh the page and try again.");
+        setPayLoading(false);
+        return;
+      }
+
       const oid = generateOrderId();
       const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+      const shippingAddress = {
+        fullName: form.fullName,
+        addressLine1: form.addressLine1,
+        addressLine2: form.addressLine2,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+        phone: form.phone,
+      };
+
+      // Turn the cart into a real Medusa order before anything else — a COD
+      // "order" with no backend record means no inventory tracking and no
+      // order history entry.
+      let confirmedOrderId: string | null = null;
+      try {
+        const oRes = await fetch("/api/cod/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cartId, email: clerkEmail, shippingAddress }),
+        });
+        const oData = await oRes.json() as { orderId?: string | null };
+        confirmedOrderId = oData.orderId ?? null;
+      } catch (err) {
+        console.error("[EYRA] COD order completion request failed:", err);
+      }
+
+      if (!confirmedOrderId) {
+        console.error("[EYRA] COD order completion failed for cart", cartId);
+        setRazorpayError("Could not place your order. Please try again or contact support.");
+        setPayLoading(false);
+        return;
+      }
+
       let awbCode = "";
       let courierName = "";
       try {
@@ -796,18 +836,10 @@ export function CheckoutClient() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            medusaOrderId: confirmedOrderId,
             eyraOrderRef: oid,
             paymentMethod: "cod",
-            shipping: {
-              fullName: form.fullName,
-              addressLine1: form.addressLine1,
-              addressLine2: form.addressLine2,
-              city: form.city,
-              state: form.state,
-              pincode: form.pincode,
-              phone: form.phone,
-              email: clerkEmail,
-            },
+            shipping: { ...shippingAddress, email: clerkEmail },
             items: items.map((i) => ({
               name: i.product.name,
               sku: i.product.id,
@@ -824,10 +856,10 @@ export function CheckoutClient() {
           courierName = sData.courierName ?? "";
         }
       } catch (err) {
-        console.error("[EYRA/shipment] COD shipment creation failed for order", oid, ":", err);
+        console.error("[EYRA/shipment] COD shipment creation failed for order", confirmedOrderId, ":", err);
       }
       clearCart();
-      const params = new URLSearchParams({ orderId: oid, method: "cod" });
+      const params = new URLSearchParams({ orderId: confirmedOrderId, method: "cod" });
       if (awbCode) params.set("awb", awbCode);
       if (courierName) params.set("courier", courierName);
       router.push(`/orders/success?${params.toString()}`);
@@ -858,6 +890,17 @@ export function CheckoutClient() {
       return;
     }
 
+    const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+    const shippingAddress = {
+      fullName: form.fullName,
+      addressLine1: form.addressLine1,
+      addressLine2: form.addressLine2,
+      city: form.city,
+      state: form.state,
+      pincode: form.pincode,
+      phone: form.phone,
+    };
+
     // Obtain a server-generated Razorpay order_id from Medusa.
     // This token is what makes HMAC signature verification possible —
     // Razorpay includes razorpay_signature in the response only when order_id is present.
@@ -866,7 +909,7 @@ export function CheckoutClient() {
       const res = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cartId }),
+        body: JSON.stringify({ cartId, email: clerkEmail, shippingAddress }),
       });
       if (res.ok) {
         const data = await res.json() as { razorpayOrderId?: string | null };
@@ -901,7 +944,6 @@ export function CheckoutClient() {
     const oid = generateOrderId();
 
     // Clerk user data for prefill — supplements the shipping form
-    const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
     const clerkName = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
 
     const rzpOptions: RazorpayOptions = {
@@ -978,16 +1020,7 @@ export function CheckoutClient() {
               medusaOrderId: confirmedOrderId,
               eyraOrderRef: oid,
               paymentMethod: "prepaid",
-              shipping: {
-                fullName: form.fullName,
-                addressLine1: form.addressLine1,
-                addressLine2: form.addressLine2,
-                city: form.city,
-                state: form.state,
-                pincode: form.pincode,
-                phone: form.phone,
-                email: clerkEmail,
-              },
+              shipping: { ...shippingAddress, email: clerkEmail },
               items: items.map((i) => ({
                 name: i.product.name,
                 sku: i.product.id,

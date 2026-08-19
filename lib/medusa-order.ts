@@ -78,6 +78,178 @@ export async function fetchCartSnapshot(cartId: string): Promise<CartSnapshot | 
   }
 }
 
+/* ── Checkout preparation ─────────────────────────────────── */
+
+export interface CheckoutShippingAddress {
+  fullName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  phone: string;
+}
+
+function splitName(fullName: string): { first_name: string; last_name: string } {
+  const [first_name, ...rest] = fullName.trim().split(/\s+/);
+  return { first_name: first_name || fullName, last_name: rest.join(" ") };
+}
+
+/**
+ * Push the shipping address/email onto the cart and select a shipping
+ * method — both are required before Medusa will allow the cart to
+ * complete. Call this once, before creating a payment collection, on
+ * every checkout path (COD and prepaid alike).
+ *
+ * Returns false on failure; the caller should treat that as fatal for
+ * this checkout attempt (completion will fail regardless).
+ */
+export async function prepareCartForCheckout(
+  cartId: string,
+  email: string,
+  address: CheckoutShippingAddress
+): Promise<boolean> {
+  const { first_name, last_name } = splitName(address.fullName);
+
+  try {
+    const addressRes = await fetch(`${BASE_URL}/store/carts/${cartId}`, {
+      method: "POST",
+      headers: storeHeaders(),
+      body: JSON.stringify({
+        email,
+        shipping_address: {
+          first_name,
+          last_name,
+          phone: address.phone,
+          address_1: address.addressLine1,
+          address_2: address.addressLine2 || null,
+          city: address.city,
+          province: address.state,
+          postal_code: address.pincode,
+          country_code: "in",
+        },
+      }),
+    });
+    if (!addressRes.ok) {
+      console.error(
+        `[medusa-order] cart address update ${addressRes.status} ${addressRes.statusText} — cart ${cartId}`
+      );
+      return false;
+    }
+  } catch (err) {
+    console.error("[medusa-order] cart address update error for", cartId, ":", err);
+    return false;
+  }
+
+  try {
+    const optionsRes = await fetch(
+      `${BASE_URL}/store/shipping-options?cart_id=${cartId}`,
+      { headers: storeHeaders(), cache: "no-store" }
+    );
+    if (!optionsRes.ok) {
+      console.error(
+        `[medusa-order] shipping options fetch ${optionsRes.status} ${optionsRes.statusText} — cart ${cartId}`
+      );
+      return false;
+    }
+    const optionsData = (await optionsRes.json()) as {
+      shipping_options?: { id: string }[];
+    };
+    const optionId = optionsData.shipping_options?.[0]?.id;
+    if (!optionId) {
+      console.error(`[medusa-order] no shipping options available for cart ${cartId}`);
+      return false;
+    }
+
+    const methodRes = await fetch(`${BASE_URL}/store/carts/${cartId}/shipping-methods`, {
+      method: "POST",
+      headers: storeHeaders(),
+      body: JSON.stringify({ option_id: optionId }),
+    });
+    if (!methodRes.ok) {
+      console.error(
+        `[medusa-order] shipping method set ${methodRes.status} ${methodRes.statusText} — cart ${cartId}`
+      );
+      return false;
+    }
+  } catch (err) {
+    console.error("[medusa-order] shipping method error for", cartId, ":", err);
+    return false;
+  }
+
+  return true;
+}
+
+/* ── Payment collection ───────────────────────────────────── */
+
+interface MedusaPaymentSession {
+  id: string;
+  provider_id: string;
+  data: Record<string, unknown>;
+}
+
+interface MedusaPaymentCollection {
+  id: string;
+  amount: number;
+  payment_sessions?: MedusaPaymentSession[];
+}
+
+/**
+ * Create (or reuse) the payment collection for a cart.
+ *
+ * Note: the correct endpoint is the top-level `/store/payment-collections`
+ * with `cart_id` in the body — there is no `/store/carts/:id/payment-collection`
+ * route in this Medusa version.
+ */
+export async function createPaymentCollection(cartId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/store/payment-collections`, {
+      method: "POST",
+      headers: storeHeaders(),
+      body: JSON.stringify({ cart_id: cartId }),
+    });
+    if (!res.ok) {
+      console.error(
+        `[medusa-order] payment collection ${res.status} ${res.statusText} — cart ${cartId}`
+      );
+      return null;
+    }
+    const body = (await res.json()) as { payment_collection?: { id: string } };
+    return body.payment_collection?.id ?? null;
+  } catch (err) {
+    console.error("[medusa-order] payment collection error for cart", cartId, ":", err);
+    return null;
+  }
+}
+
+/** Initialize a payment session on a collection with the given provider. */
+export async function initPaymentSession(
+  collectionId: string,
+  providerId: string
+): Promise<MedusaPaymentCollection | null> {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/store/payment-collections/${collectionId}/payment-sessions`,
+      {
+        method: "POST",
+        headers: storeHeaders(),
+        body: JSON.stringify({ provider_id: providerId }),
+      }
+    );
+    if (!res.ok) {
+      console.error(
+        `[medusa-order] payment session ${res.status} ${res.statusText} — collection ${collectionId}`
+      );
+      return null;
+    }
+    const body = (await res.json()) as { payment_collection?: MedusaPaymentCollection };
+    return body.payment_collection ?? null;
+  } catch (err) {
+    console.error("[medusa-order] payment session error for collection", collectionId, ":", err);
+    return null;
+  }
+}
+
 /* ── Completion ───────────────────────────────────────────── */
 
 interface MedusaCompleteResponse {
