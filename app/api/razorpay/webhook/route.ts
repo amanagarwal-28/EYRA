@@ -21,6 +21,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 
 import { completeCart, fetchCartSnapshot } from "@/lib/medusa-order";
+import { sendOrderConfirmationEmail } from "@/lib/order-email";
 import {
   claimPayment,
   lookupCartForRazorpayOrder,
@@ -231,6 +232,8 @@ export async function POST(request: NextRequest) {
     `[razorpay/webhook] Recovered order via ${eventName} — ` +
     `medusa_order: ${orderId}, payment: ${payment.id}, cart resolved via ${cartSource}.`
   );
+
+  await sendOrderConfirmationEmail(orderId);
 
   return Response.json({ received: true, acted: true, medusa_order_id: orderId });
 }

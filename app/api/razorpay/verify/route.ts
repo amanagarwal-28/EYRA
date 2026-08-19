@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { completeCart } from "@/lib/medusa-order";
 import { lookupCartForRazorpayOrder } from "@/lib/razorpay-store";
+import { sendOrderConfirmationEmail } from "@/lib/order-email";
 
 interface VerifyBody {
   razorpay_order_id: string;
@@ -107,6 +108,8 @@ export async function POST(request: NextRequest) {
       razorpay_order_id,
     });
   }
+
+  await sendOrderConfirmationEmail(medusaOrderId);
 
   return Response.json({
     verified: true,

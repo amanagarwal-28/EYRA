@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { applyRateLimit } from "@/lib/rateLimit";
+import { sendEmail } from "@/lib/email";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -61,36 +62,25 @@ function validateTicket(body: Partial<TicketBody>): TicketError[] {
 /* ── Delivery adapters ────────────────────────────────────── */
 
 async function sendViaResend(ticket: TicketBody): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY!;
   const recipient = process.env.SUPPORT_EMAIL_RECIPIENT ?? "support@eyra.com";
-  const from = process.env.SUPPORT_EMAIL_FROM ?? "EYRA Support <noreply@eyra.com>";
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from,
-      to: [recipient],
-      reply_to: ticket.email,
-      subject: `[Support] ${ticket.category.toUpperCase()} — ${ticket.name}`,
-      html: `
-        <h2>New Support Request</h2>
-        <p><strong>Name:</strong> ${ticket.name}</p>
-        <p><strong>Email:</strong> ${ticket.email}</p>
-        <p><strong>Category:</strong> ${ticket.category}</p>
-        <hr />
-        <p>${ticket.message.replace(/\n/g, "<br>")}</p>
-      `,
-    }),
-    cache: "no-store",
+  const sent = await sendEmail({
+    to: recipient,
+    replyTo: ticket.email,
+    from: process.env.SUPPORT_EMAIL_FROM,
+    subject: `[Support] ${ticket.category.toUpperCase()} — ${ticket.name}`,
+    html: `
+      <h2>New Support Request</h2>
+      <p><strong>Name:</strong> ${ticket.name}</p>
+      <p><strong>Email:</strong> ${ticket.email}</p>
+      <p><strong>Category:</strong> ${ticket.category}</p>
+      <hr />
+      <p>${ticket.message.replace(/\n/g, "<br>")}</p>
+    `,
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Resend API error ${res.status}: ${body}`);
+  if (!sent) {
+    throw new Error("Resend delivery failed");
   }
 }
 

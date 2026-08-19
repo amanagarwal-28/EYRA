@@ -6,6 +6,7 @@ import {
   completeCart,
   type CheckoutShippingAddress,
 } from "@/lib/medusa-order";
+import { sendOrderConfirmationEmail } from "@/lib/order-email";
 
 /**
  * Complete a Cash-on-Delivery cart into a real Medusa order.
@@ -49,6 +50,8 @@ export async function POST(req: NextRequest) {
     if (!orderId) {
       return NextResponse.json({ orderId: null, error: "completion_failed" }, { status: 200 });
     }
+
+    await sendOrderConfirmationEmail(orderId);
 
     return NextResponse.json({ orderId });
   } catch (err) {
