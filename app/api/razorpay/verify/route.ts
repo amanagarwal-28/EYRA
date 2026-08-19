@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 
 import { completeCart } from "@/lib/medusa-order";
+import { lookupCartForRazorpayOrder } from "@/lib/razorpay-store";
 
 interface VerifyBody {
   razorpay_order_id: string;
@@ -53,8 +54,45 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Signature is valid — convert the Medusa cart into a confirmed order.
-  const { orderId: medusaOrderId } = await completeCart(medusa_cart_id);
+  // The signature only proves order_id and payment_id are a genuine,
+  // linked Razorpay transaction — it says nothing about medusa_cart_id,
+  // which rides along in the same request body and is fully
+  // browser-controlled. Trusting it directly would let a customer pay for
+  // a cheap cart, then resubmit verify with someone else's expensive
+  // cart_id and get it marked paid for free.
+  //
+  // The only trustworthy source for "which cart does this Razorpay order
+  // belong to" is the mapping /api/razorpay/create-order wrote server-side
+  // before the client ever saw an order_id.
+  const trustedCartId = await lookupCartForRazorpayOrder(razorpay_order_id);
+
+  if (!trustedCartId) {
+    // No server-side record of this order (Redis unavailable, or the
+    // mapping expired) — we cannot safely trust the client-supplied cart
+    // ID, so this route must not complete anything. Report the payment as
+    // verified (it is — the signature checked out) but leave completion to
+    // /api/razorpay/webhook, which independently re-derives the cart and
+    // amount-checks any untrusted resolution before completing it.
+    return Response.json({
+      verified: true,
+      medusa_order_id: null,
+      razorpay_payment_id,
+      razorpay_order_id,
+    });
+  }
+
+  if (trustedCartId !== medusa_cart_id) {
+    console.error(
+      "[EYRA Security] verify request's medusa_cart_id did not match the " +
+      `trusted mapping for razorpay_order ${razorpay_order_id} ` +
+      `(claimed: ${medusa_cart_id}, actual: ${trustedCartId}). Using the ` +
+      "trusted cart ID; the claimed one was ignored."
+    );
+  }
+
+  // Signature is valid and the cart is server-verified — convert it into a
+  // confirmed order. Always use the trusted ID, never the client-supplied one.
+  const { orderId: medusaOrderId } = await completeCart(trustedCartId);
 
   if (!medusaOrderId) {
     // Payment was real but order creation failed (e.g. Medusa backend down).
