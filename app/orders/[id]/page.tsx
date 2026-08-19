@@ -29,6 +29,7 @@ interface MedusaShippingAddress {
 interface MedusaOrder {
   id: string;
   display_id: number;
+  customer_id: string | null;
   status: string;
   payment_status: string;
   fulfillment_status: string;
@@ -79,7 +80,9 @@ async function fetchOrder(orderId: string): Promise<MedusaOrder | null> {
   const key = process.env.MEDUSA_ADMIN_API_KEY;
   if (!key) return null;
   try {
-    const res = await fetch(`${ADMIN_BASE}/admin/orders/${orderId}`, {
+    // customer_id isn't in Medusa's default retrieve fields — request it
+    // explicitly so ownership can be verified before rendering the order.
+    const res = await fetch(`${ADMIN_BASE}/admin/orders/${orderId}?fields=+customer_id`, {
       headers: { "x-medusa-access-token": key },
       cache: "no-store",
     });
@@ -294,6 +297,13 @@ export default async function OrderDetailPage({
 
   const order = await fetchOrder(id);
   if (!order) notFound();
+
+  // Ownership check — fetchOrder uses the Admin API, which will happily
+  // return any order regardless of who's asking. Without this, any signed-in
+  // user could view any other customer's order (items, address, phone) just
+  // by guessing or enumerating order IDs.
+  const medusaCustomerId = user.publicMetadata?.medusaCustomerId as string | undefined;
+  if (!medusaCustomerId || order.customer_id !== medusaCustomerId) notFound();
 
   const awbCode = order.metadata?.awb_code;
   const courierName = order.metadata?.courier_name;
