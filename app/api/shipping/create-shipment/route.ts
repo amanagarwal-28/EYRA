@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { storeConfig } from "@/config/storeConfig";
+import { rememberOrderForShipment } from "@/lib/shiprocket-store";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 const MEDUSA_BASE = (
@@ -234,13 +235,9 @@ export async function POST(request: NextRequest) {
       awbCode: awbCode ?? "",
       courierName: courierName ?? "",
     });
-    // NOTE: To also write tracking_number + courier_name into eyra_order,
-    // install `pg` and `@types/pg`, then run:
-    //   UPDATE eyra_order
-    //   SET tracking_number = $1, courier_name = $2,
-    //       fulfillment_status = 'fulfillment_created', shipped_at = NOW()
-    //   WHERE medusa_order_id = $3
-    // using process.env.DATABASE_URL as the connection string.
+    // The Shiprocket status webhook only echoes back eyraOrderRef, not the
+    // Medusa order ID — remember the mapping so it can resolve the order.
+    await rememberOrderForShipment(eyraOrderRef, medusaOrderId);
   }
 
   const result: CreateShipmentResult = {
