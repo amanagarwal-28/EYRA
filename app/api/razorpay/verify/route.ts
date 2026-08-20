@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { completeCart } from "@/lib/medusa-order";
 import { lookupCartForRazorpayOrder } from "@/lib/razorpay-store";
 import { sendOrderConfirmationEmail } from "@/lib/order-email";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 interface VerifyBody {
   razorpay_order_id: string;
@@ -13,6 +14,9 @@ interface VerifyBody {
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, "razorpay_verify", 10);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const secret = process.env.RAZORPAY_KEY_SECRET;
   if (!secret) {
     // Hard failure — operating without a secret means signatures can never be

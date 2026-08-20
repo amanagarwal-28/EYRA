@@ -4,6 +4,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { getWishlistEntries, setWishlistEntries, type WishlistEntry } from "@/lib/medusa-wishlist";
 import { getProductByHandle } from "@/lib/medusa";
 import type { Product } from "@/components/products/types";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 interface HydratedWishlistItem {
   product: Product;
@@ -41,6 +42,9 @@ export async function GET() {
 
 /** Overwrite the signed-in user's stored wishlist with the given entries. */
 export async function PUT(req: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(req, "wishlist_put", 60);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const customerId = await resolveMedusaCustomerId();
   if (!customerId) {
     // Guest or not-yet-synced customer — nothing to persist server-side.

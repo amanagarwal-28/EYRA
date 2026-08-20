@@ -6,8 +6,12 @@ import {
   initPaymentSession,
   type CheckoutShippingAddress,
 } from "@/lib/medusa-order";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(req, "razorpay_create_order", 10);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const { cartId, email, shippingAddress } = (await req.json()) as {
       cartId?: string;

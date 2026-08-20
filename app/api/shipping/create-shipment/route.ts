@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { storeConfig } from "@/config/storeConfig";
 import { rememberOrderForShipment } from "@/lib/shiprocket-store";
 import { splitName } from "@/lib/medusa-order";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 const MEDUSA_BASE = (
@@ -179,6 +180,9 @@ async function persistToMedusa(
 /* ── Route handler ────────────────────────────────────────── */
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, "shipping_create_shipment", 10);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const token = process.env.SHIPROCKET_API_TOKEN;
 
   let body: Partial<CreateShipmentBody>;

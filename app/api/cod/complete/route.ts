@@ -7,6 +7,7 @@ import {
   type CheckoutShippingAddress,
 } from "@/lib/medusa-order";
 import { sendOrderConfirmationEmail } from "@/lib/order-email";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 /**
  * Complete a Cash-on-Delivery cart into a real Medusa order.
@@ -17,6 +18,9 @@ import { sendOrderConfirmationEmail } from "@/lib/order-email";
  * what this is for.
  */
 export async function POST(req: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(req, "cod_complete", 10);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const { cartId, email, shippingAddress } = (await req.json()) as {
       cartId?: string;

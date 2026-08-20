@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { applyRateLimit } from "@/lib/rateLimit";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 
@@ -25,6 +26,9 @@ export interface ServiceabilityResult {
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, "shipping_serviceability", 20);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const token = process.env.SHIPROCKET_API_TOKEN;
   const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE;
 
