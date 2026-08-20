@@ -147,7 +147,7 @@ export default async function InvoicePage({
             <p className="font-sans text-[13px] text-[#626262] leading-[20px]">
               {seller.legalName}
               <br />
-              {seller.addressLine1}, {seller.addressLine2}
+              {[seller.addressLine1, seller.addressLine2].filter(Boolean).join(", ")}
               <br />
               {seller.city}, {seller.state} {seller.pincode}
               <br />
