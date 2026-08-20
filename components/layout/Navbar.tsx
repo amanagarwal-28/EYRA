@@ -10,7 +10,9 @@ import { useCartStore } from "@/store/useStore";
 import { useWishlistStore } from "@/store/useStore";
 
 const NAV_ITEMS = [
-  { label: "Collections", href: "/collections" },
+  { label: "Collections", href: "/collections"        },
+  { label: "For Her",     href: "/collections/for-her" },
+  { label: "For Him",     href: "/collections/for-him" },
   { label: "New Arrivals", href: "/new-arrivals" },
   { label: "About",       href: "/about"        },
   { label: "Contact",     href: "/contact"      },
@@ -81,7 +83,7 @@ export function Navbar() {
 
           {/* Desktop nav */}
           <nav
-            className="hidden md:flex items-center gap-8"
+            className="hidden lg:flex items-center gap-6 xl:gap-8"
             aria-label="Primary navigation"
           >
             {NAV_ITEMS.map(({ label, href }) => (
@@ -104,7 +106,7 @@ export function Navbar() {
           <div className="flex items-center gap-0.5">
             {/* Explicit auth entry point on desktop, shown to guests only. */}
             {isLoaded && !isSignedIn && (
-              <div className="hidden md:flex items-center gap-3 mr-3">
+              <div className="hidden lg:flex items-center gap-3 mr-3">
                 <Link
                   href="/sign-in"
                   className={[
@@ -196,7 +198,7 @@ export function Navbar() {
               aria-expanded={menuOpen}
               aria-controls="mobile-nav"
               className={[
-                "p-2.5 transition-colors duration-200 md:hidden",
+                "p-2.5 transition-colors duration-200 lg:hidden",
                 isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
               ].join(" ")}
               onClick={() => setMenuOpen((prev) => !prev)}

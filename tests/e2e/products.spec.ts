@@ -43,9 +43,10 @@ test("search with no matches shows the empty state", async ({ page }) => {
 test("type filter narrows results to the selected category", async ({ page }) => {
   await page.goto("/products");
 
-  // Desktop filter panel — check the "Rings" checkbox. exact:true matters
-  // here since "Rings" is otherwise a substring match of "Earrings" too.
-  await page.getByRole("button", { name: "Rings", exact: true }).click();
+  // Open the Type dropdown, then check "Rings". exact:true matters since
+  // "Rings" is otherwise a substring match of "Earrings" too.
+  await page.getByRole("button", { name: "Type" }).click();
+  await page.getByRole("menu").getByText("Rings", { exact: true }).click();
 
   const cardTitles = await page.locator("article h3").allInnerTexts();
   expect(cardTitles.length).toBeGreaterThan(0);
