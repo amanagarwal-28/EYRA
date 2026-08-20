@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 interface LogoProps {
   className?: string;
@@ -7,73 +8,52 @@ interface LogoProps {
 }
 
 /*
-  Ornament dimensions at each size.
-  The ornament is assembled from the exact 4 SVG vector paths exported from Figma
-  (file IQCv905HaRtvjchwcoh6Ze, node 119:117). viewBox stays "0 0 6 12",
-  only the rendered pixel size scales.
+  Wordmark source: public/images/logo-mark-{white,black}.png. Both are
+  cropped tight to just the "EYRA" wordmark and its flourish (native aspect
+  ratio 127:74), sourced from the brand's real logo artwork and keyed to
+  transparent, so "Jewel" is rendered separately as real text below rather
+  than baked into the raster. That keeps it independently styleable, which
+  matters since it's set noticeably lighter than the wordmark and needs its
+  own weight/colour/size per breakpoint.
 */
+const WORDMARK_ASPECT = 127 / 74;
+
 const sizes = {
-  sm: { eyra: "text-[1.15rem]", jewel: "text-[5.5px]", tracking: "tracking-[2px]",   ornW: 4.5, ornH: 9  },
-  md: { eyra: "text-[1.5rem]",  jewel: "text-[7px]",   tracking: "tracking-[2.4px]", ornW: 6,   ornH: 12 },
-  lg: { eyra: "text-[2rem]",    jewel: "text-[9px]",   tracking: "tracking-[3px]",   ornW: 7.5, ornH: 15 },
+  sm: { markH: 22, jewel: "text-[10px]", tracking: "tracking-[2.5px]" },
+  md: { markH: 28, jewel: "text-[11px]", tracking: "tracking-[3px]" },
+  lg: { markH: 38, jewel: "text-[13px]", tracking: "tracking-[3.6px]" },
 } as const;
 
-/*
-  Logo ornament, reconstructed from the four Figma vectors that form a
-  decorative vertical bar: pointed diamond tip (top) + tapered body (bottom),
-  mirrored left/right with a 2px gap in the centre.
-
-  Vectors and transforms match Figma node positions exactly:
-    Vector 12 (2×4): top-left quadrant, no transform
-    Vector 13 (2×4): top-right, horizontal mirror (scaleX -1 at x=6)
-    Vector 14 (2×8): bottom-left, flipped vertically (scaleY -1 at y=12)
-    Vector 15 (2×8): bottom-right, rotated 180° (scale -1,-1 at 6,12)
-*/
-function Ornament({ width, height, className = "" }: { width: number; height: number; className?: string }) {
-  return (
-    <svg
-      width={width}
-      height={height}
-      viewBox="0 0 6 12"
-      fill="currentColor"
-      aria-hidden="true"
-      className={`flex-shrink-0 ${className}`}
-    >
-      <path d="M2 4H0C1.10698 2.81228 1.43715 1.81294 2 0V4Z" />
-      <path transform="translate(6,0) scale(-1,1)"  d="M2 4H0C1.10698 2.81228 1.43715 1.81294 2 0V4Z" />
-      <path transform="translate(0,12) scale(1,-1)"  d="M2 8H0C1.47374 5.64381 1.67327 3.63834 2 0V8Z" />
-      <path transform="translate(6,12) scale(-1,-1)" d="M2 8H0C1.47374 5.64381 1.67327 3.63834 2 0V8Z" />
-    </svg>
-  );
-}
-
 export function Logo({ className = "", variant = "dark", size = "md" }: LogoProps) {
-  const wordColor  = variant === "light" ? "text-white"   : "text-jet";
-  const jewelColor = variant === "light" ? "text-[#8e8e8e]" : "text-stone";
-  const { eyra, jewel, tracking, ornW, ornH } = sizes[size];
+  const jewelColor = variant === "light" ? "text-pearl" : "text-[#5f5f5f]";
+  const { markH, jewel, tracking } = sizes[size];
+  const markW = Math.round(markH * WORDMARK_ASPECT);
 
   return (
     <Link
       href="/"
       aria-label="EYRA Home"
-      className={`inline-flex flex-col items-start ${wordColor} ${className} hover:opacity-80 transition-opacity duration-200`}
+      className={`inline-flex flex-col items-start ${className} hover:opacity-80 transition-opacity duration-200`}
     >
       {/* ── Wordmark ─────────────────────────────────── */}
-      <span
-        className={`font-display font-light leading-none tracking-[0.06em] ${eyra}`}
-      >
-        EYRA
-      </span>
+      <Image
+        src={variant === "light" ? "/images/logo-mark-white.png" : "/images/logo-mark-black.png"}
+        alt="EYRA"
+        width={markW}
+        height={markH}
+        priority
+        className="w-auto shrink-0"
+        style={{ height: markH }}
+      />
 
-      {/* ── Sub-mark: ornament + "Jewel" tagline ─────── */}
-      <div className="flex items-center gap-[3px] mt-[3px]">
-        <Ornament width={ornW} height={ornH} className={jewelColor} />
-        <span
-          className={`font-sans font-extralight leading-none uppercase ${jewel} ${tracking} ${jewelColor}`}
-        >
-          Jewel
-        </span>
-      </div>
+      {/* ── "Jewel" tagline, set with more weight/contrast than the
+             wordmark so it reads as a deliberate accent rather than
+             disappearing next to it ─────────────────────────────── */}
+      <span
+        className={`font-sans font-medium leading-none uppercase mt-[3px] ${jewel} ${tracking} ${jewelColor}`}
+      >
+        Jewel
+      </span>
     </Link>
   );
 }
