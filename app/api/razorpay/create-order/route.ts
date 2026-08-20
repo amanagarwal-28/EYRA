@@ -48,9 +48,11 @@ export async function POST(req: NextRequest) {
       (s) => s.provider_id === "pp_razorpay_razorpay"
     );
 
-    // `session.data.id` is the Razorpay order_id (e.g. "order_NbEkof23W")
+    // The Razorpay order_id lives at session.data.razorpayOrder.id (confirmed
+    // against the plugin's actual response shape — not session.data.id).
+    const razorpayOrder = session?.data?.razorpayOrder as { id?: unknown } | undefined;
     const razorpayOrderId =
-      typeof session?.data?.id === "string" ? session.data.id : null;
+      typeof razorpayOrder?.id === "string" ? razorpayOrder.id : null;
 
     // Bind the Razorpay order to this cart while both IDs are server-derived.
     // /api/razorpay/webhook relies on this to recover an order when the
