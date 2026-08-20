@@ -3,6 +3,26 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
+      // ── EYRA's own domain ─────────────────────────────────────
+      // Seed product data references images by absolute URL
+      // (https://www.eyra.org.in/images/...) rather than a relative path.
+      // Vercel happens to auto-permit a deployment's own domain for
+      // next/image, which is why this was never caught in production — but
+      // that's an implicit, provider-specific allowance, not something to
+      // rely on. Without this entry, `next dev` (which doesn't know its
+      // "own domain") throws on every single product image and crashes to
+      // the error boundary.
+      {
+        protocol: "https",
+        hostname: "eyra.org.in",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.eyra.org.in",
+        pathname: "/**",
+      },
+
       // ── Medusa backend ────────────────────────────────────────
       // Local development: Medusa serves uploads directly from its HTTP port.
       {

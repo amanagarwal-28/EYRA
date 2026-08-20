@@ -120,9 +120,7 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
   const addToCart = useCartStore((s) => s.addToCart);
   const cartItems = useCartStore((s) => s.items);
   const toggleWishlist = useWishlistStore((s) => s.toggle);
-  const isWishlisted = useWishlistStore((s) => s.isWishlisted);
-
-  const wishlist = isWishlisted(product.id);
+  const wishlist = useWishlistStore((s) => s.items.some((i) => i.product.id === product.id));
   const inCart = cartItems.some(
     (i) => i.product.id === product.id && i.size === (product.type === "ring" ? selectedSize : null)
   );
