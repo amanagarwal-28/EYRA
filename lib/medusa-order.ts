@@ -31,6 +31,7 @@ interface RawCartResponse {
     total: number;
     currency_code: string;
     completed_at?: string | null;
+    items?: unknown[];
   };
 }
 
@@ -41,6 +42,8 @@ export interface CartSnapshot {
   currencyCode: string;
   /** Set once the cart has become an order; null while the cart is still open. */
   completedAt: string | null;
+  /** Line item count — a cart with 0 items must never be allowed to complete. */
+  itemCount: number;
 }
 
 /**
@@ -71,6 +74,7 @@ export async function fetchCartSnapshot(cartId: string): Promise<CartSnapshot | 
       total: data.cart.total,
       currencyCode: data.cart.currency_code,
       completedAt: data.cart.completed_at ?? null,
+      itemCount: data.cart.items?.length ?? 0,
     };
   } catch (err) {
     console.error("[medusa-order] cart fetch error for", cartId, ":", err);
@@ -274,6 +278,19 @@ export interface CompleteCartOutcome {
  * Call only after the payment has been cryptographically verified.
  */
 export async function completeCart(cartId: string): Promise<CompleteCartOutcome> {
+  // Medusa's own complete workflow does not reject an empty cart - it happily
+  // produces a real order charging only shipping. A line item can silently
+  // fail to be added (e.g. an out-of-stock race) while the rest of checkout
+  // proceeds regardless, so this has to be checked here, not assumed upstream.
+  const snapshot = await fetchCartSnapshot(cartId);
+  if (!snapshot) {
+    return { orderId: null, retryable: true };
+  }
+  if (snapshot.itemCount === 0) {
+    console.error(`[medusa-order] refusing to complete empty cart ${cartId}`);
+    return { orderId: null, retryable: false };
+  }
+
   try {
     const res = await fetch(`${BASE_URL}/store/carts/${cartId}/complete`, {
       method: "POST",
