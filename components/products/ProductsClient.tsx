@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, Search, X } from "lucide-react";
 import { ProductCard } from "./ProductCard";
 import type { Product } from "./types";
 
@@ -176,14 +176,30 @@ function FilterPanel({
   );
 }
 
-export function ProductsClient({ products }: { products: Product[] }) {
+export function ProductsClient({
+  products,
+  initialQuery = "",
+}: {
+  products: Product[];
+  initialQuery?: string;
+}) {
   const [selectedTypes, setSelectedTypes] = useState<ProductType[]>([]);
   const [priceRange, setPriceRange] = useState<PriceRange>("all");
   const [sortBy, setSortBy] = useState<SortOption>("trending");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [query, setQuery] = useState(initialQuery);
 
   const filtered = useMemo(() => {
     let result = [...products];
+    const q = query.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          p.type.toLowerCase().includes(q)
+      );
+    }
     if (selectedTypes.length > 0) {
       result = result.filter((p) => selectedTypes.includes(p.type));
     }
@@ -191,7 +207,7 @@ export function ProductsClient({ products }: { products: Product[] }) {
     if (sortBy === "price-asc") result.sort((a, b) => a.price - b.price);
     if (sortBy === "price-desc") result.sort((a, b) => b.price - a.price);
     return result;
-  }, [selectedTypes, priceRange, sortBy]);
+  }, [products, query, selectedTypes, priceRange, sortBy]);
 
   const panelProps: FilterPanelProps = {
     selectedTypes,
@@ -206,7 +222,10 @@ export function ProductsClient({ products }: { products: Product[] }) {
     setSelectedTypes([]);
     setPriceRange("all");
     setSortBy("trending");
+    setQuery("");
   }
+
+  const hasActiveFilters = selectedTypes.length > 0 || priceRange !== "all" || query.trim() !== "";
 
   return (
     <div className="max-w-screen-xl mx-auto px-6 lg:px-10">
@@ -219,6 +238,30 @@ export function ProductsClient({ products }: { products: Product[] }) {
           <span className="text-[#5F5F5F] mx-1">›</span>
           <span className="text-black">Products</span>
         </nav>
+      </div>
+
+      <div className="w-full h-px bg-[#CFCFCF]" />
+
+      {/* Search */}
+      <div className="py-5 flex items-center gap-3 max-w-[420px]">
+        <Search size={16} strokeWidth={1.5} className="text-[#909090] shrink-0" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search rings, chains, earrings…"
+          aria-label="Search products"
+          className="flex-1 bg-transparent font-sans font-light text-[15px] text-black placeholder:text-[#909090] focus:outline-none border-b border-[#CFCFCF] focus:border-black pb-1.5 transition-colors duration-200"
+        />
+        {query && (
+          <button
+            aria-label="Clear search"
+            onClick={() => setQuery("")}
+            className="text-[#909090] hover:text-black transition-colors duration-200 shrink-0"
+          >
+            <X size={16} strokeWidth={1.5} />
+          </button>
+        )}
       </div>
 
       <div className="w-full h-px bg-[#CFCFCF]" />
@@ -251,7 +294,7 @@ export function ProductsClient({ products }: { products: Product[] }) {
             <h2 className="font-sans font-medium text-[16px] leading-[24px] text-black">
               Filters
             </h2>
-            {(selectedTypes.length > 0 || priceRange !== "all") && (
+            {hasActiveFilters && (
               <button
                 className="font-sans font-light text-[12px] text-[#909090] hover:text-black underline underline-offset-2 transition-colors duration-200"
                 onClick={clearFilters}

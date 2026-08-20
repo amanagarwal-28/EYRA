@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, Search, ShoppingBag, User, Heart } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { useCartStore } from "@/store/useStore";
@@ -18,10 +18,25 @@ const NAV_ITEMS = [
 export function Navbar() {
   const [scrolled,  setScrolled]  = useState(false);
   const [menuOpen,  setMenuOpen]  = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const isHome = pathname === "/";
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const wishlistCount = useWishlistStore((s) => s.items.length);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = searchValue.trim();
+    setSearchOpen(false);
+    router.push(q ? `/products?q=${encodeURIComponent(q)}` : "/products");
+  }
 
   useEffect(() => {
     if (!isHome) return;
@@ -83,13 +98,18 @@ export function Navbar() {
           {/* Action icons */}
           <div className="flex items-center gap-0.5">
             <button
-              aria-label="Search"
+              aria-label={searchOpen ? "Close search" : "Search"}
+              aria-expanded={searchOpen}
+              onClick={() => setSearchOpen((prev) => !prev)}
               className={[
                 "p-2.5 transition-colors duration-200",
                 isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
               ].join(" ")}
             >
-              <Search size={17} strokeWidth={1.5} />
+              {searchOpen
+                ? <X size={17} strokeWidth={1.5} />
+                : <Search size={17} strokeWidth={1.5} />
+              }
             </button>
             <button
               aria-label="Account"
@@ -156,6 +176,44 @@ export function Navbar() {
           </div>
         </div>
       </header>
+
+      {/* ── Search panel ──────────────────────────────── */}
+      {searchOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/20"
+            onClick={() => setSearchOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="fixed inset-x-0 z-50 bg-white border-b border-[#CFCFCF] shadow-sm"
+            style={{ top: "var(--nav-height)" }}
+          >
+            <form
+              onSubmit={submitSearch}
+              className="max-w-screen-xl mx-auto px-6 lg:px-10 py-6 flex items-center gap-4"
+              role="search"
+            >
+              <Search size={18} strokeWidth={1.5} className="text-[#909090] shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Search rings, chains, earrings…"
+                aria-label="Search products"
+                className="flex-1 bg-transparent font-sans font-light text-[16px] text-black placeholder:text-[#909090] focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="font-sans font-medium text-[14px] text-black underline underline-offset-2 hover:text-[#626262] transition-colors duration-200 shrink-0"
+              >
+                Search
+              </button>
+            </form>
+          </div>
+        </>
+      )}
 
       {/* ── Mobile full-screen overlay ─────────────────── */}
       <div
