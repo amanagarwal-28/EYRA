@@ -5,8 +5,8 @@
  * callers can degrade gracefully rather than crash.
  *
  * Configure via:
- *   UPSTASH_REDIS_REST_URL   — REST endpoint from the Upstash console
- *   UPSTASH_REDIS_REST_TOKEN — read-write token (server-only, never NEXT_PUBLIC_)
+ *   UPSTASH_REDIS_REST_URL  , REST endpoint from the Upstash console
+ *   UPSTASH_REDIS_REST_TOKEN, read-write token (server-only, never NEXT_PUBLIC_)
  */
 import { Redis } from "@upstash/redis";
 

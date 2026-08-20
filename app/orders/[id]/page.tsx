@@ -80,7 +80,7 @@ async function fetchOrder(orderId: string): Promise<MedusaOrder | null> {
   const key = process.env.MEDUSA_ADMIN_API_KEY;
   if (!key) return null;
   try {
-    // customer_id isn't in Medusa's default retrieve fields — request it
+    // customer_id isn't in Medusa's default retrieve fields, request it
     // explicitly so ownership can be verified before rendering the order.
     const res = await fetch(`${ADMIN_BASE}/admin/orders/${orderId}?fields=+customer_id`, {
       // Secret API keys (sk_...) authenticate via HTTP Basic, not this header.
@@ -122,7 +122,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return { title: `Order — ${id.slice(0, 8).toUpperCase()}` };
+  return { title: `Order ${id.slice(0, 8).toUpperCase()}` };
 }
 
 /* ── Helpers ──────────────────────────────────────────────── */
@@ -299,7 +299,7 @@ export default async function OrderDetailPage({
   const order = await fetchOrder(id);
   if (!order) notFound();
 
-  // Ownership check — fetchOrder uses the Admin API, which will happily
+  // Ownership check, fetchOrder uses the Admin API, which will happily
   // return any order regardless of who's asking. Without this, any signed-in
   // user could view any other customer's order (items, address, phone) just
   // by guessing or enumerating order IDs.
@@ -362,7 +362,7 @@ export default async function OrderDetailPage({
         {/* Left column */}
         <div className="flex-1 flex flex-col gap-6">
 
-          {/* Tracking timeline — only when AWB exists */}
+          {/* Tracking timeline, only when AWB exists */}
           {awbCode && (
             <TrackingTimeline
               activities={activities}
@@ -416,7 +416,7 @@ export default async function OrderDetailPage({
           </div>
         </div>
 
-        {/* Right column — order summary */}
+        {/* Right column, order summary */}
         <div className="lg:w-[300px] flex flex-col gap-5">
 
           {/* Price breakdown */}

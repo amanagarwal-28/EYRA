@@ -6,7 +6,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { syncMedusaCustomer } from "@/lib/medusa-customer";
 
-/* Poppins — UI / body font (replaces Inter; matches Figma Poppins usage) */
+/* Poppins, UI / body font (replaces Inter; matches Figma Poppins usage) */
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["200", "300", "400", "500"],
@@ -14,7 +14,7 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-/* Cormorant Garamond — display / wordmark font (closest Google Fonts
+/* Cormorant Garamond, display / wordmark font (closest Google Fonts
    equivalent to Charlotte Veronica used in the Figma logo) */
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -25,7 +25,7 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: {
-    default: "EYRA — Silver Jewelry",
+    default: "EYRA Silver Jewelry",
     template: "%s | EYRA",
   },
   description:

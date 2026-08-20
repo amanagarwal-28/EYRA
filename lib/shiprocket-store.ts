@@ -2,20 +2,20 @@
  * Server-only: durable bookkeeping for the Shiprocket webhook.
  *
  * Shiprocket's status-update webhook only carries back whatever `order_id`
- * we originally sent when creating the shipment (eyraOrderRef — a friendly,
+ * we originally sent when creating the shipment (eyraOrderRef, a friendly,
  * client-generated string) and the AWB code. Neither of those is a Medusa
  * order ID, and Medusa's Admin API has no reliable way to search orders by
  * metadata, so without this mapping there is no way to resolve an incoming
  * webhook back to the order it belongs to.
  *
- * Degrades to a no-op when Upstash isn't configured — the webhook then has
+ * Degrades to a no-op when Upstash isn't configured, the webhook then has
  * no way to resolve the order and safely does nothing.
  */
 import "server-only";
 
 import { redis } from "@/lib/redis";
 
-const MAPPING_TTL_SECONDS = 60 * 60 * 24 * 60; // 60 days — covers slow RTOs
+const MAPPING_TTL_SECONDS = 60 * 60 * 24 * 60; // 60 days, covers slow RTOs
 
 const orderKey = (eyraOrderRef: string) => `eyra:shiprocket:order:${eyraOrderRef}`;
 
@@ -35,7 +35,7 @@ export async function rememberOrderForShipment(
     console.error(
       "[shiprocket-store] Failed to persist order mapping for",
       eyraOrderRef,
-      "— webhook status updates for this shipment will be dropped:",
+      "webhook status updates for this shipment will be dropped:",
       err
     );
   }

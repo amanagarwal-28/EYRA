@@ -42,7 +42,7 @@ export interface CartSnapshot {
   currencyCode: string;
   /** Set once the cart has become an order; null while the cart is still open. */
   completedAt: string | null;
-  /** Line item count — a cart with 0 items must never be allowed to complete. */
+  /** Line item count, a cart with 0 items must never be allowed to complete. */
   itemCount: number;
 }
 
@@ -51,7 +51,7 @@ export interface CartSnapshot {
  * cart was already completed by the client path and to compare the paid amount
  * against what the cart actually owes.
  *
- * Returns null when the cart is unknown or the backend is unreachable — the
+ * Returns null when the cart is unknown or the backend is unreachable, the
  * caller cannot distinguish these, so treat null as "retry later".
  */
 export async function fetchCartSnapshot(cartId: string): Promise<CartSnapshot | null> {
@@ -62,7 +62,7 @@ export async function fetchCartSnapshot(cartId: string): Promise<CartSnapshot | 
     });
 
     if (!res.ok) {
-      console.error(`[medusa-order] cart fetch ${res.status} ${res.statusText} — ${cartId}`);
+      console.error(`[medusa-order] cart fetch ${res.status} ${res.statusText}, ${cartId}`);
       return null;
     }
 
@@ -101,7 +101,7 @@ export function splitName(fullName: string): { first_name: string; last_name: st
 
 /**
  * Push the shipping address/email onto the cart and select a shipping
- * method — both are required before Medusa will allow the cart to
+ * method, both are required before Medusa will allow the cart to
  * complete. Call this once, before creating a payment collection, on
  * every checkout path (COD and prepaid alike).
  *
@@ -136,7 +136,7 @@ export async function prepareCartForCheckout(
     });
     if (!addressRes.ok) {
       console.error(
-        `[medusa-order] cart address update ${addressRes.status} ${addressRes.statusText} — cart ${cartId}`
+        `[medusa-order] cart address update ${addressRes.status} ${addressRes.statusText}, cart ${cartId}`
       );
       return false;
     }
@@ -152,7 +152,7 @@ export async function prepareCartForCheckout(
     );
     if (!optionsRes.ok) {
       console.error(
-        `[medusa-order] shipping options fetch ${optionsRes.status} ${optionsRes.statusText} — cart ${cartId}`
+        `[medusa-order] shipping options fetch ${optionsRes.status} ${optionsRes.statusText}, cart ${cartId}`
       );
       return false;
     }
@@ -172,7 +172,7 @@ export async function prepareCartForCheckout(
     });
     if (!methodRes.ok) {
       console.error(
-        `[medusa-order] shipping method set ${methodRes.status} ${methodRes.statusText} — cart ${cartId}`
+        `[medusa-order] shipping method set ${methodRes.status} ${methodRes.statusText}, cart ${cartId}`
       );
       return false;
     }
@@ -202,7 +202,7 @@ interface MedusaPaymentCollection {
  * Create (or reuse) the payment collection for a cart.
  *
  * Note: the correct endpoint is the top-level `/store/payment-collections`
- * with `cart_id` in the body — there is no `/store/carts/:id/payment-collection`
+ * with `cart_id` in the body, there is no `/store/carts/:id/payment-collection`
  * route in this Medusa version.
  */
 export async function createPaymentCollection(cartId: string): Promise<string | null> {
@@ -214,7 +214,7 @@ export async function createPaymentCollection(cartId: string): Promise<string | 
     });
     if (!res.ok) {
       console.error(
-        `[medusa-order] payment collection ${res.status} ${res.statusText} — cart ${cartId}`
+        `[medusa-order] payment collection ${res.status} ${res.statusText}, cart ${cartId}`
       );
       return null;
     }
@@ -242,7 +242,7 @@ export async function initPaymentSession(
     );
     if (!res.ok) {
       console.error(
-        `[medusa-order] payment session ${res.status} ${res.statusText} — collection ${collectionId}`
+        `[medusa-order] payment session ${res.status} ${res.statusText}, collection ${collectionId}`
       );
       return null;
     }
@@ -266,7 +266,7 @@ export interface CompleteCartOutcome {
   orderId: string | null;
   /**
    * True when the failure looks transient (network error, 5xx, 429) and the
-   * caller should ask Razorpay to redeliver. False for permanent conditions —
+   * caller should ask Razorpay to redeliver. False for permanent conditions,
    * retrying those just burns the retry budget.
    */
   retryable: boolean;
@@ -300,7 +300,7 @@ export async function completeCart(cartId: string): Promise<CompleteCartOutcome>
 
     if (!res.ok) {
       console.error(
-        `[medusa-order] complete ${res.status} ${res.statusText} — cart ${cartId}`
+        `[medusa-order] complete ${res.status} ${res.statusText}, cart ${cartId}`
       );
       return { orderId: null, retryable: res.status >= 500 || res.status === 429 };
     }
@@ -311,10 +311,10 @@ export async function completeCart(cartId: string): Promise<CompleteCartOutcome>
       return { orderId: data.order.id, retryable: false };
     }
 
-    // Medusa returned the cart instead of an order — usually a validation
+    // Medusa returned the cart instead of an order, usually a validation
     // failure (out of stock, no shipping method). Retrying will not fix it.
     console.error(
-      `[medusa-order] complete returned type "${data.type}" instead of an order — cart ${cartId}`
+      `[medusa-order] complete returned type "${data.type}" instead of an order, cart ${cartId}`
     );
     return { orderId: null, retryable: false };
   } catch (err) {
@@ -326,7 +326,7 @@ export async function completeCart(cartId: string): Promise<CompleteCartOutcome>
 /* ── Payment reconciliation metadata ─────────────────────────
  *
  * Without this, there is no durable link between a Medusa order and the
- * Razorpay payment that paid for it — the only record is a Redis
+ * Razorpay payment that paid for it, the only record is a Redis
  * idempotency key that expires after 30 days. Persisting it onto the
  * order itself is what makes reconciling against Razorpay's own records
  * possible at all, at any point in the future.

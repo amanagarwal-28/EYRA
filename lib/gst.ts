@@ -3,12 +3,12 @@
  *
  * GST rule this encodes: sales within the seller's home state split the tax
  * into CGST + SGST (each half the total rate); sales to any other state use
- * IGST at the full rate instead. Both cases show the same total tax — this
+ * IGST at the full rate instead. Both cases show the same total tax, this
  * only affects how it's itemized on the invoice, which is a real, must-not-
  * get-wrong-by-hand compliance detail rather than a display choice.
  */
 
-/** Official GST state codes — the first two digits of every GSTIN. */
+/** Official GST state codes, the first two digits of every GSTIN. */
 export const GST_STATE_CODES: Record<string, string> = {
   "jammu and kashmir": "01",
   "himachal pradesh": "02",
@@ -51,12 +51,12 @@ export const GST_STATE_CODES: Record<string, string> = {
 };
 
 export function gstStateCode(stateName: string): string {
-  return GST_STATE_CODES[stateName.trim().toLowerCase()] ?? "—";
+  return GST_STATE_CODES[stateName.trim().toLowerCase()] ?? "-";
 }
 
 export interface GstBreakdown {
   isInterState: boolean;
-  /** Each of CGST/SGST, or the full rate for IGST — always sums to `totalRate`. */
+  /** Each of CGST/SGST, or the full rate for IGST, always sums to `totalRate`. */
   rate: number;
   totalRate: number;
   cgst: number;

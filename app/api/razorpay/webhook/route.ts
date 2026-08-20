@@ -1,5 +1,5 @@
 /**
- * Razorpay webhook — the guaranteed confirmation path.
+ * Razorpay webhook, the guaranteed confirmation path.
  *
  * /api/razorpay/verify only runs if the customer's browser survives long enough
  * to call it. When the modal is closed early, the tab dies, or the network drops
@@ -59,14 +59,14 @@ interface RazorpayWebhookEvent {
   };
 }
 
-/** How the cart ID was resolved — determines how much we trust it. */
+/** How the cart ID was resolved, determines how much we trust it. */
 type CartSource = "mapping" | "notes";
 
 /* ── Signature verification ───────────────────────────────── */
 
 /**
  * Razorpay signs the raw request body with the webhook secret (HMAC-SHA256,
- * hex). The body must be hashed exactly as received — re-serialising parsed
+ * hex). The body must be hashed exactly as received, re-serialising parsed
  * JSON reorders keys and breaks the digest.
  */
 function signatureValid(rawBody: string, received: string, secret: string): boolean {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!secret) {
     console.error(
-      "[EYRA Security] RAZORPAY_WEBHOOK_SECRET is not configured — webhook events cannot be authenticated and are being rejected."
+      "[EYRA Security] RAZORPAY_WEBHOOK_SECRET is not configured, webhook events cannot be authenticated and are being rejected."
     );
     return Response.json({ error: "Webhook not configured." }, { status: 500 });
   }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
   if (!signatureValid(rawBody, receivedSignature, secret)) {
     console.error(
-      "[EYRA Security] Webhook signature verification FAILED — request rejected. " +
+      "[EYRA Security] Webhook signature verification FAILED, request rejected. " +
       "This is either a misconfigured secret or a forged delivery."
     );
     return Response.json({ error: "Invalid signature." }, { status: 400 });
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
   if (eventName === "payment.failed") {
     console.warn(
-      "[razorpay/webhook] Payment failed —",
+      "[razorpay/webhook] Payment failed:",
       `payment: ${payment?.id ?? "unknown"},`,
       `order: ${payment?.order_id ?? "unknown"},`,
       `reason: ${payment?.error_description ?? "not provided"}`
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!payment?.id) {
-    console.error(`[razorpay/webhook] "${eventName}" carried no payment entity — cannot process.`);
+    console.error(`[razorpay/webhook] "${eventName}" carried no payment entity, cannot process.`);
     return Response.json({ received: true, acted: false, reason: "no_payment_entity" });
   }
 
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
 
   // Preferred: the server-written mapping from /api/razorpay/create-order.
   // Fallback: checkout notes, which originate in the browser and are therefore
-  // attacker-controlled — that path gets an extra amount check below.
+  // attacker-controlled, that path gets an extra amount check below.
   let cartId: string | null = payment.order_id
     ? await lookupCartForRazorpayOrder(payment.order_id)
     : null;
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
 
   if (!cartId) {
     console.error(
-      "[EYRA Security] MANUAL RECONCILIATION REQUIRED — payment captured but no Medusa cart could be resolved. " +
+      "[EYRA Security] MANUAL RECONCILIATION REQUIRED, payment captured but no Medusa cart could be resolved. " +
       `payment: ${payment.id}, razorpay_order: ${payment.order_id ?? "none"}, ` +
       `amount: ₹${payment.amount / 100}.`
     );
@@ -179,10 +179,10 @@ export async function POST(request: NextRequest) {
   const snapshot = await fetchCartSnapshot(cartId);
 
   if (!snapshot) {
-    // Unknown cart or unreachable backend — indistinguishable here, so let
+    // Unknown cart or unreachable backend, indistinguishable here, so let
     // Razorpay redeliver rather than dropping a captured payment.
     console.error(
-      `[razorpay/webhook] Could not read cart ${cartId} for payment ${payment.id} — requesting redelivery.`
+      `[razorpay/webhook] Could not read cart ${cartId} for payment ${payment.id}, requesting redelivery.`
     );
     await releasePayment(payment.id);
     return Response.json({ error: "Cart unavailable." }, { status: 500 });
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
   // Razorpay reports payment.amount in paise; snapshot.total is in rupees.
   if (cartSource === "notes" && snapshot.total * 100 !== payment.amount) {
     console.error(
-      "[EYRA Security] TRANSACTION BLOCKED — amount mismatch on notes-resolved cart. " +
+      "[EYRA Security] TRANSACTION BLOCKED, amount mismatch on notes-resolved cart. " +
       `payment: ${payment.id}, paid: ₹${payment.amount / 100}, cart ${cartId} owes: ₹${snapshot.total}. ` +
       "Cart was NOT completed."
     );
@@ -222,14 +222,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.error(
-      "[EYRA Security] MANUAL RECONCILIATION REQUIRED — payment captured but cart completion was rejected. " +
+      "[EYRA Security] MANUAL RECONCILIATION REQUIRED, payment captured but cart completion was rejected. " +
       `payment: ${payment.id}, cart: ${cartId}, amount: ₹${payment.amount / 100}.`
     );
     return Response.json({ received: true, acted: false, reason: "completion_rejected" });
   }
 
   console.info(
-    `[razorpay/webhook] Recovered order via ${eventName} — ` +
+    `[razorpay/webhook] Recovered order via ${eventName}, ` +
     `medusa_order: ${orderId}, payment: ${payment.id}, cart resolved via ${cartSource}.`
   );
 

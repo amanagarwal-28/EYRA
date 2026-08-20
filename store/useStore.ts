@@ -7,9 +7,9 @@ export interface CartItem {
   product: Product;
   size: number | null;
   quantity: number;
-  /** Medusa variant ID — undefined for mock-data items */
+  /** Medusa variant ID, undefined for mock-data items */
   variantId?: string;
-  /** Medusa line item ID — set after the first successful backend sync */
+  /** Medusa line item ID, set after the first successful backend sync */
   lineItemId?: string;
 }
 
@@ -76,7 +76,7 @@ export const useCartStore = create<CartStore>()(
       };
     });
 
-    // Background Medusa sync — only when a variant ID is available
+    // Background Medusa sync, only when a variant ID is available
     if (!variantId) {
       set({ syncStatus: "idle" });
       return;
@@ -216,7 +216,7 @@ export const useCartStore = create<CartStore>()(
     const fetched = await fetchCart(cartId);
 
     if (!fetched) {
-      // Cart expired on the server — clear stale state so the next addToCart
+      // Cart expired on the server, clear stale state so the next addToCart
       // creates a fresh cart rather than retrying a dead cartId.
       clearStoredCartId();
       set({ cartId: null, items: [], serverTotals: null });
@@ -313,7 +313,7 @@ export const useWishlistStore = create<WishlistStore>()(
       /**
        * Reconcile with the server wishlist once per session, after sign-in.
        * Merges by product ID rather than replacing outright, so items a guest
-       * favourited before logging in aren't lost — then pushes the merged
+       * favourited before logging in aren't lost, then pushes the merged
        * result back so the server reflects it too.
        */
       async initWishlist() {

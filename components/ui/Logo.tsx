@@ -9,7 +9,7 @@ interface LogoProps {
 /*
   Ornament dimensions at each size.
   The ornament is assembled from the exact 4 SVG vector paths exported from Figma
-  (file IQCv905HaRtvjchwcoh6Ze, node 119:117). viewBox stays "0 0 6 12" —
+  (file IQCv905HaRtvjchwcoh6Ze, node 119:117). viewBox stays "0 0 6 12",
   only the rendered pixel size scales.
 */
 const sizes = {
@@ -19,7 +19,7 @@ const sizes = {
 } as const;
 
 /*
-  Logo ornament — reconstructed from the four Figma vectors that form a
+  Logo ornament, reconstructed from the four Figma vectors that form a
   decorative vertical bar: pointed diamond tip (top) + tapered body (bottom),
   mirrored left/right with a 2px gap in the centre.
 
@@ -55,7 +55,7 @@ export function Logo({ className = "", variant = "dark", size = "md" }: LogoProp
   return (
     <Link
       href="/"
-      aria-label="EYRA — Home"
+      aria-label="EYRA Home"
       className={`inline-flex flex-col items-start ${wordColor} ${className} hover:opacity-80 transition-opacity duration-200`}
     >
       {/* ── Wordmark ─────────────────────────────────── */}

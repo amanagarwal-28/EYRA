@@ -45,7 +45,7 @@ export interface CreateShipmentResult {
   awbCode: string | null;
   courierName: string | null;
   error?: string;
-  /** Non-fatal diagnostic — shipment was created but a background step failed (e.g. Medusa metadata write). */
+  /** Non-fatal diagnostic, shipment was created but a background step failed (e.g. Medusa metadata write). */
   warning?: string;
 }
 
@@ -172,7 +172,7 @@ async function persistToMedusa(
     return null;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[Medusa] persistToMedusa failed for order", medusaOrderId, "— shipment exists but metadata not written:", err);
+    console.error("[Medusa] persistToMedusa failed for order", medusaOrderId, "shipment exists but metadata not written:", err);
     return `Medusa metadata write failed: ${msg}`;
   }
 }
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Shiprocket not configured — return a graceful no-op so checkout is not blocked.
+  // Shiprocket not configured, return a graceful no-op so checkout is not blocked.
   if (!token) {
     const result: CreateShipmentResult = {
       success: false,
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
       courierName: courierName ?? "",
     });
     // The Shiprocket status webhook only echoes back eyraOrderRef, not the
-    // Medusa order ID — remember the mapping so it can resolve the order.
+    // Medusa order ID, remember the mapping so it can resolve the order.
     await rememberOrderForShipment(eyraOrderRef, medusaOrderId);
   }
 

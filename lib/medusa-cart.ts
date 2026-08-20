@@ -1,5 +1,5 @@
 /**
- * Medusa Store Cart API v2 — client-only helpers.
+ * Medusa Store Cart API v2, client-only helpers.
  *
  * Import only from Zustand store actions or client components.
  * All cart mutations return the server-confirmed totals so the store
@@ -17,7 +17,7 @@ export const CART_ID_KEY = "eyra_cart_id";
 
 /**
  * Medusa v2 stores/returns amounts in MAJOR units, not the smallest currency
- * unit — ₹2,499 is `2499`, not `249900`.
+ * unit, ₹2,499 is `2499`, not `249900`.
  */
 
 /* ── Raw Medusa cart types ────────────────────────────────── */
@@ -59,7 +59,7 @@ export interface CartLineItemSummary {
   thumbnail: string | null;
 }
 
-/** Server-confirmed totals — rupees, as returned by Medusa. */
+/** Server-confirmed totals, rupees, as returned by Medusa. */
 export interface CartTotals {
   subtotal: number;
   taxTotal: number;
@@ -97,7 +97,7 @@ async function cartFetch<T>(path: string, init?: RequestInit): Promise<T | null>
       },
     });
     if (!res.ok) {
-      console.error(`[medusa-cart] ${res.status} ${res.statusText} — ${url}`);
+      console.error(`[medusa-cart] ${res.status} ${res.statusText}, ${url}`);
       return null;
     }
     return (await res.json()) as T;
@@ -146,7 +146,7 @@ export async function createCart(): Promise<string | null> {
 
 /**
  * Return the stored cart ID, creating a new cart if none exists.
- * Safe to call multiple times — only creates one cart per session.
+ * Safe to call multiple times, only creates one cart per session.
  */
 export async function getOrCreateCartId(): Promise<string | null> {
   const stored = getStoredCartId();
@@ -226,7 +226,7 @@ export interface FetchedCart {
 }
 
 /**
- * Fetch a full cart by ID — used on app startup to reconnect a persisted session.
+ * Fetch a full cart by ID, used on app startup to reconnect a persisted session.
  * Returns null if the cart has expired or the backend is unreachable.
  */
 export async function fetchCart(cartId: string): Promise<FetchedCart | null> {

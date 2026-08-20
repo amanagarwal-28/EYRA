@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { applyRateLimit } from "@/lib/rateLimit";
 import { sendEmail } from "@/lib/email";
+import { storeConfig } from "@/config/storeConfig";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -62,13 +63,14 @@ function validateTicket(body: Partial<TicketBody>): TicketError[] {
 /* ── Delivery adapters ────────────────────────────────────── */
 
 async function sendViaResend(ticket: TicketBody): Promise<void> {
-  const recipient = process.env.SUPPORT_EMAIL_RECIPIENT ?? "support@eyra.com";
+  const recipient =
+    process.env.SUPPORT_EMAIL_RECIPIENT ?? storeConfig.contact.supportEmail;
 
   const sent = await sendEmail({
     to: recipient,
     replyTo: ticket.email,
     from: process.env.SUPPORT_EMAIL_FROM,
-    subject: `[Support] ${ticket.category.toUpperCase()} — ${ticket.name}`,
+    subject: `[Support] ${ticket.category.toUpperCase()}: ${ticket.name}`,
     html: `
       <h2>New Support Request</h2>
       <p><strong>Name:</strong> ${ticket.name}</p>
@@ -106,7 +108,7 @@ async function deliverTicket(ticket: TicketBody): Promise<void> {
   if (process.env.SUPPORT_WEBHOOK_URL) {
     return sendViaWebhook(ticket);
   }
-  // Development fallback — structured log so the data is still visible
+  // Development fallback, structured log so the data is still visible
   console.info("[support/ticket] No delivery adapter configured. Ticket payload:", {
     name: ticket.name,
     email: ticket.email,
@@ -141,7 +143,9 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("[support/ticket] Delivery failed:", err);
     return Response.json(
-      { error: "Failed to submit your request. Please try again or email support@eyra.com directly." },
+      {
+        error: `Failed to submit your request. Please try again or email ${storeConfig.contact.supportEmail} directly.`,
+      },
       { status: 500 }
     );
   }

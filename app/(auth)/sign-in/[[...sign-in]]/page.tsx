@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
-/* ── Clerk appearance — matches Figma exactly ───────────── */
+/* ── Clerk appearance, matches Figma exactly ───────────── */
 const appearance = {
   variables: {
     colorPrimary: "#000000",
@@ -23,7 +23,7 @@ const appearance = {
     rootBox: "w-full",
     card: "shadow-none border-0 bg-transparent p-0 gap-6 w-full",
 
-    /* Hide Clerk's internal header — we render our own logo + title */
+    /* Hide Clerk's internal header, we render our own logo + title */
     header: "hidden",
 
     /* Input fields: 56px tall, #EBEBEB border, 12px radius */
@@ -129,7 +129,7 @@ export default function SignInPage() {
           </button>
         </div>
 
-        {/* Form — vertically centred */}
+        {/* Form, vertically centred */}
         <div className="flex flex-col items-center gap-6 max-w-[412px] w-full mx-auto">
           {/* EYRA logo */}
           <Logo variant="dark" size="md" />
@@ -149,7 +149,7 @@ export default function SignInPage() {
 
         {/* Page footer */}
         <div className="flex justify-between font-sans font-normal text-[20px] leading-[30px] text-[#787878]">
-          <Link href="/privacy-policy" className="hover:text-black transition-colors duration-200">
+          <Link href="/legal/privacy" className="hover:text-black transition-colors duration-200">
             Privacy policy
           </Link>
           <span>Copyright 2026</span>

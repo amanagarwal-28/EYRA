@@ -79,7 +79,7 @@ export function CartSyncBanner() {
         className="pointer-events-auto w-full max-w-[580px] flex items-center gap-3 pl-4 pr-3 py-3.5 rounded-2xl shadow-2xl"
         style={{ background: "#020202" }}
       >
-        {/* Warning icon — amber tint to distinguish from the jet background */}
+        {/* Warning icon, amber tint to distinguish from the jet background */}
         <span className="flex-shrink-0" style={{ color: "#E4C23C" }}>
           <WarningIcon />
         </span>
@@ -111,7 +111,7 @@ export function CartSyncBanner() {
           {retrying ? "Retrying" : "Retry"}
         </button>
 
-        {/* Dismiss — only available when not mid-retry */}
+        {/* Dismiss, only available when not mid-retry */}
         {!retrying && (
           <button
             aria-label="Dismiss cart sync error"

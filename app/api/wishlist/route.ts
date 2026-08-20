@@ -47,7 +47,7 @@ export async function PUT(req: NextRequest) {
 
   const customerId = await resolveMedusaCustomerId();
   if (!customerId) {
-    // Guest or not-yet-synced customer — nothing to persist server-side.
+    // Guest or not-yet-synced customer, nothing to persist server-side.
     // The local store remains the source of truth until sign-in completes.
     return NextResponse.json({ synced: false });
   }

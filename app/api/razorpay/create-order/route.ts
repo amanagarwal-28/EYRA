@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 1 — set email/shipping address and select a shipping method.
+    // Step 1, set email/shipping address and select a shipping method.
     // Required before Medusa will allow the cart to complete.
     const prepared = await prepareCartForCheckout(cartId, email, shippingAddress);
     if (!prepared) {
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 2 — create (or reuse) the payment collection for this cart
+    // Step 2, create (or reuse) the payment collection for this cart
     const collectionId = await createPaymentCollection(cartId);
 
     if (!collectionId) {
@@ -46,14 +46,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 3 — initialize a Razorpay payment session on the collection
+    // Step 3, initialize a Razorpay payment session on the collection
     const collection = await initPaymentSession(collectionId, "pp_razorpay_razorpay");
     const session = collection?.payment_sessions?.find(
       (s) => s.provider_id === "pp_razorpay_razorpay"
     );
 
     // The Razorpay order_id lives at session.data.razorpayOrder.id (confirmed
-    // against the plugin's actual response shape — not session.data.id).
+    // against the plugin's actual response shape, not session.data.id).
     const razorpayOrder = session?.data?.razorpayOrder as { id?: unknown } | undefined;
     const razorpayOrderId =
       typeof razorpayOrder?.id === "string" ? razorpayOrder.id : null;
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[razorpay/create-order]", err);
-    // Non-critical — frontend will fall back to amount-only checkout
+    // Non-critical, frontend will fall back to amount-only checkout
     return NextResponse.json({ razorpayOrderId: null, error: "internal" }, { status: 200 });
   }
 }

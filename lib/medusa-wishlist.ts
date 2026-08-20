@@ -4,11 +4,11 @@
  * Medusa has no native wishlist concept, so entries are stored as a plain
  * array under the customer's `metadata.wishlist` key. Metadata updates are
  * merged at the top level by Medusa, so writing `{ metadata: { wishlist } }`
- * replaces only that key — other metadata is untouched.
+ * replaces only that key, other metadata is untouched.
  *
  * Required env vars:
- *   MEDUSA_ADMIN_API_KEY   — Admin API token from the Medusa dashboard
- *   NEXT_PUBLIC_MEDUSA_BACKEND_URL — e.g. http://localhost:9000
+ *   MEDUSA_ADMIN_API_KEY  , Admin API token from the Medusa dashboard
+ *   NEXT_PUBLIC_MEDUSA_BACKEND_URL, e.g. http://localhost:9000
  */
 import "server-only";
 
@@ -19,14 +19,14 @@ const BASE_URL = (
 const ADMIN_KEY = process.env.MEDUSA_ADMIN_API_KEY ?? "";
 
 export interface WishlistEntry {
-  /** Medusa product handle — matches Product.id in the storefront. */
+  /** Medusa product handle, matches Product.id in the storefront. */
   productId: string;
   variantId?: string;
 }
 
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   if (!ADMIN_KEY) {
-    console.warn("[medusa-wishlist] MEDUSA_ADMIN_API_KEY is not set — skipping wishlist sync");
+    console.warn("[medusa-wishlist] MEDUSA_ADMIN_API_KEY is not set, skipping wishlist sync");
     return null;
   }
 
@@ -36,14 +36,14 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T | null
       headers: {
         "Content-Type": "application/json",
         // Secret API keys (sk_...) authenticate via HTTP Basic, not a
-        // custom header or Bearer — see lib/medusa-customer.ts for detail.
+        // custom header or Bearer, see lib/medusa-customer.ts for detail.
         Authorization: `Basic ${ADMIN_KEY}`,
         ...(init?.headers ?? {}),
       },
       cache: "no-store",
     });
     if (!res.ok) {
-      console.error(`[medusa-wishlist] ${res.status} ${res.statusText} — ${path}`);
+      console.error(`[medusa-wishlist] ${res.status} ${res.statusText}, ${path}`);
       return null;
     }
     return (await res.json()) as T;

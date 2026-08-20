@@ -12,7 +12,7 @@
  *      can legitimately deliver both `payment.captured` and `order.paid` for a
  *      single payment, so the handler must be safe to run repeatedly.
  *
- * Every function degrades to a no-op when Upstash is not configured — the
+ * Every function degrades to a no-op when Upstash is not configured, the
  * webhook then falls back to Medusa's own `completed_at` check for idempotency.
  */
 import "server-only";
@@ -48,7 +48,7 @@ export async function rememberCartForRazorpayOrder(
     console.error(
       "[razorpay-store] Failed to persist cart mapping for",
       razorpayOrderId,
-      "— webhook recovery for this order will be degraded:",
+      "webhook recovery for this order will be degraded:",
       err
     );
   }
@@ -72,7 +72,7 @@ export async function lookupCartForRazorpayOrder(
 export type PaymentClaim =
   /** This process now owns the payment and should proceed. */
   | "claimed"
-  /** Another delivery already handled it — the caller must not act again. */
+  /** Another delivery already handled it, the caller must not act again. */
   | "already_processed"
   /** No Redis configured; caller must rely on a secondary idempotency check. */
   | "unavailable";
@@ -82,7 +82,7 @@ export type PaymentClaim =
  *
  * Release the claim via `releasePayment` on any path that did NOT reach a
  * terminal outcome, otherwise a transient Medusa outage would permanently
- * swallow the order — Razorpay's retry would be deduped against a claim that
+ * swallow the order, Razorpay's retry would be deduped against a claim that
  * never resulted in a completed cart.
  */
 export async function claimPayment(paymentId: string): Promise<PaymentClaim> {
@@ -107,7 +107,7 @@ export async function releasePayment(paymentId: string): Promise<void> {
   } catch (err) {
     console.error(
       "[razorpay-store] Failed to release idempotency claim for", paymentId,
-      "— retries of this webhook will be deduped and the order may need manual completion:",
+      "retries of this webhook will be deduped and the order may need manual completion:",
       err
     );
   }

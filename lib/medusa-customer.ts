@@ -2,9 +2,9 @@
  * Server-only: Medusa Admin API helpers for customer provisioning.
  *
  * Required env vars:
- *   MEDUSA_ADMIN_API_KEY   — Admin API token from the Medusa dashboard
+ *   MEDUSA_ADMIN_API_KEY  , Admin API token from the Medusa dashboard
  *                            (Settings → API key management → Create API key)
- *   NEXT_PUBLIC_MEDUSA_BACKEND_URL — e.g. http://localhost:9000
+ *   NEXT_PUBLIC_MEDUSA_BACKEND_URL, e.g. http://localhost:9000
  */
 import "server-only";
 
@@ -44,7 +44,7 @@ async function adminFetch<T>(
   init?: RequestInit
 ): Promise<T | null> {
   if (!ADMIN_KEY) {
-    console.warn("[medusa-customer] MEDUSA_ADMIN_API_KEY is not set — skipping customer sync");
+    console.warn("[medusa-customer] MEDUSA_ADMIN_API_KEY is not set, skipping customer sync");
     return null;
   }
 
@@ -55,7 +55,7 @@ async function adminFetch<T>(
       headers: {
         "Content-Type": "application/json",
         // Secret API keys (sk_...) authenticate via HTTP Basic, not a
-        // custom header or Bearer — confirmed against Medusa's own
+        // custom header or Bearer, confirmed against Medusa's own
         // authenticate-middleware, which parses `Authorization: Basic sk_...`.
         Authorization: `Basic ${ADMIN_KEY}`,
         ...(init?.headers ?? {}),
@@ -64,7 +64,7 @@ async function adminFetch<T>(
       cache: "no-store",
     });
     if (!res.ok) {
-      console.error(`[medusa-customer] ${res.status} ${res.statusText} — ${path}`);
+      console.error(`[medusa-customer] ${res.status} ${res.statusText}, ${path}`);
       return null;
     }
     return (await res.json()) as T;

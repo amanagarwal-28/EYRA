@@ -46,7 +46,7 @@ export function ValuesSection() {
           </p>
         </FadeIn>
 
-        {/* Row 1 — 3 columns */}
+        {/* Row 1, 3 columns */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 lg:gap-14 mb-12">
           {VALUES.slice(0, 3).map((v, i) => (
             <FadeIn key={v.title + i} delay={i * 80} className="flex flex-col items-center text-center gap-4">
@@ -61,7 +61,7 @@ export function ValuesSection() {
           ))}
         </div>
 
-        {/* Row 2 — 2 columns centred */}
+        {/* Row 2, 2 columns centred */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 lg:gap-14 max-w-2xl mx-auto">
           {VALUES.slice(3).map((v, i) => (
             <FadeIn key={v.title + i + 3} delay={i * 80 + 240} className="flex flex-col items-center text-center gap-4">

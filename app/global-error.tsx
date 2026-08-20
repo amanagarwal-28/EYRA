@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 
 /**
- * Catches crashes in the root layout itself, which app/error.tsx cannot —
+ * Catches crashes in the root layout itself, which app/error.tsx cannot,
  * it replaces the whole document, so it must define its own <html>/<body>.
  */
 export default function GlobalError({

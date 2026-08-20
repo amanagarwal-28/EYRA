@@ -29,7 +29,7 @@ const clerkAppearance = {
     spacingUnit: "1rem",
   },
   elements: {
-    // Root card — borderless, no shadow, matches page bg
+    // Root card, borderless, no shadow, matches page bg
     card: "shadow-none border-0 bg-transparent p-0",
     // Navbar and header inside the profile panel
     navbar: "border-r border-[#F0F0F0] bg-[#F9F9F9]",

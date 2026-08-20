@@ -63,7 +63,7 @@ async function fetchOrderForEmail(orderId: string): Promise<OrderForEmail | null
       { headers: adminHeaders(), cache: "no-store" }
     );
     if (!res.ok) {
-      console.error(`[order-email] order fetch ${res.status} — ${orderId}`);
+      console.error(`[order-email] order fetch ${res.status}, ${orderId}`);
       return null;
     }
     const data = (await res.json()) as { order?: OrderForEmail };
@@ -88,7 +88,7 @@ async function markConfirmationEmailSent(orderId: string): Promise<void> {
   }
 }
 
-/** EYRA's brand palette (app/globals.css) — mirrored here since email clients can't read @theme tokens. */
+/** EYRA's brand palette (app/globals.css), mirrored here since email clients can't read @theme tokens. */
 const COLOR = {
   jet: "#020202",
   carbon: "#4d4d4d",

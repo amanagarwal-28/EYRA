@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, Search, ShoppingBag, User, Heart } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 import { Logo } from "@/components/ui/Logo";
 import { useCartStore } from "@/store/useStore";
 import { useWishlistStore } from "@/store/useStore";
@@ -26,6 +27,10 @@ export function Navbar() {
   const isHome = pathname === "/";
   const cartCount = useCartStore((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const wishlistCount = useWishlistStore((s) => s.items.length);
+  // Clerk v7 dropped the <SignedIn>/<SignedOut> components, and its <Show> is a
+  // server component, so a client component reads auth state via the hook.
+  // Gate on isLoaded so the auth controls do not flip after hydration.
+  const { isLoaded, isSignedIn } = useAuth();
 
   useEffect(() => {
     if (searchOpen) searchInputRef.current?.focus();
@@ -97,6 +102,32 @@ export function Navbar() {
 
           {/* Action icons */}
           <div className="flex items-center gap-0.5">
+            {/* Explicit auth entry point on desktop, shown to guests only. */}
+            {isLoaded && !isSignedIn && (
+              <div className="hidden md:flex items-center gap-3 mr-3">
+                <Link
+                  href="/sign-in"
+                  className={[
+                    "text-[0.7rem] font-sans font-normal tracking-[0.18em] uppercase transition-colors duration-200",
+                    isHome ? "text-pearl hover:text-white" : "text-[#626262] hover:text-black",
+                  ].join(" ")}
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className={[
+                    "text-[0.7rem] font-sans font-normal tracking-[0.18em] uppercase px-4 py-2 rounded-full border transition-colors duration-200",
+                    isHome
+                      ? "border-white/50 text-white hover:bg-white hover:text-black"
+                      : "border-[#CFCFCF] text-black hover:bg-black hover:text-white hover:border-black",
+                  ].join(" ")}
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+
             <button
               aria-label={searchOpen ? "Close search" : "Search"}
               aria-expanded={searchOpen}
@@ -111,15 +142,17 @@ export function Navbar() {
                 : <Search size={17} strokeWidth={1.5} />
               }
             </button>
-            <button
-              aria-label="Account"
+            {/* Account: signed-in users go to their profile, guests to sign-in. */}
+            <Link
+              href={isSignedIn ? "/account" : "/sign-in"}
+              aria-label={isSignedIn ? "Your account" : "Sign in"}
               className={[
-                "p-2.5 transition-colors duration-200",
+                "p-2.5 transition-colors duration-200 block",
                 isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
               ].join(" ")}
             >
               <User size={17} strokeWidth={1.5} />
-            </button>
+            </Link>
             <Link
               href="/wishlist"
               aria-label="Wishlist"
@@ -157,7 +190,7 @@ export function Navbar() {
               )}
             </Link>
 
-            {/* Hamburger — mobile only */}
+            {/* Hamburger, mobile only */}
             <button
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
@@ -244,6 +277,28 @@ export function Navbar() {
             </Link>
           ))}
         </nav>
+
+        {/* Account actions */}
+        {isLoaded && (
+          <div className="px-8">
+            <div className="flex flex-col gap-4">
+              <Link
+                href={isSignedIn ? "/account" : "/sign-in"}
+                onClick={closeMenu}
+                className="w-full text-center px-8 py-3.5 rounded-full bg-white text-black font-sans font-normal text-[0.72rem] tracking-[0.2em] uppercase hover:bg-pearl transition-colors duration-200"
+              >
+                {isSignedIn ? "My account" : "Sign in"}
+              </Link>
+              <Link
+                href={isSignedIn ? "/orders" : "/sign-up"}
+                onClick={closeMenu}
+                className="w-full text-center px-8 py-3.5 rounded-full border border-white/50 text-white font-sans font-normal text-[0.72rem] tracking-[0.2em] uppercase hover:border-white transition-colors duration-200"
+              >
+                {isSignedIn ? "My orders" : "Create account"}
+              </Link>
+            </div>
+          </div>
+        )}
 
         <div className="mt-auto px-8 pb-12 border-t border-stone/40 pt-6">
           <p className="text-[0.68rem] font-sans tracking-[0.2em] uppercase text-stone">

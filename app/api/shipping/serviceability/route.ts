@@ -3,7 +3,7 @@ import { applyRateLimit } from "@/lib/rateLimit";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 
-/** Default parcel weight in kg — safe upper bound for silver jewelry. */
+/** Default parcel weight in kg, safe upper bound for silver jewelry. */
 const DEFAULT_WEIGHT_KG = 0.5;
 
 interface ShiprocketCourier {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE;
 
   if (!token || !pickupPincode) {
-    // Shiprocket not yet configured — return a permissive fallback so checkout
+    // Shiprocket not yet configured, return a permissive fallback so checkout
     // is not blocked during development/staging.
     const fallback: ServiceabilityResult = {
       serviceable: true,

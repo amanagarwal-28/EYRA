@@ -1,24 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FadeIn } from "@/components/ui/FadeIn";
+import { COLLECTIONS as ALL_COLLECTIONS } from "@/config/collections";
 
-const COLLECTIONS = [
-  {
-    src: "/images/collection-1.jpg",
-    label: "Rings",
-    href: "/collections/rings",
-  },
-  {
-    src: "/images/collection-2.jpg",
-    label: "Necklaces",
-    href: "/collections/necklaces",
-  },
-  {
-    src: "/images/collection-3.jpg",
-    label: "Bracelets",
-    href: "/collections/bracelets",
-  },
-];
+// The three product-type collections, taken from the shared config so the
+// homepage never advertises a category with no stock behind it.
+const COLLECTIONS = ALL_COLLECTIONS.filter((c) =>
+  ["rings", "chains", "earrings"].includes(c.slug)
+).map((c) => ({
+  src: c.image,
+  label: c.label,
+  href: `/collections/${c.slug}`,
+}));
 
 export function CollectionsGrid() {
   return (

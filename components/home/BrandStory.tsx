@@ -25,7 +25,7 @@ export function BrandStory() {
                   sizes="200px"
                 />
               </div>
-              {/* Short pill — raised up */}
+              {/* Short pill, raised up */}
               <div
                 className="relative overflow-hidden rounded-full flex-shrink-0 -mt-12"
                 style={{ width: "clamp(110px, 13vw, 165px)", height: "clamp(170px, 22vw, 280px)" }}
@@ -55,7 +55,7 @@ export function BrandStory() {
               comfort, and everyday, effortless luxury.
             </p>
             <p className="font-sans font-light text-[0.86rem] leading-relaxed text-carbon">
-              Each piece is designed to complement both modern fashion and personal style — easily
+              Each piece is designed to complement both modern fashion and personal style, easily
               making every detail feel effortlessly refined. Whether layered subtly or styled
               minimally, every Eyra jewellery is made to become part of your identity.
             </p>

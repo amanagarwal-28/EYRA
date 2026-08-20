@@ -89,7 +89,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return { title: `Invoice — ${id.slice(0, 8).toUpperCase()}` };
+  return { title: `Invoice ${id.slice(0, 8).toUpperCase()}` };
 }
 
 /* ── Page ─────────────────────────────────────────────────── */
@@ -133,7 +133,7 @@ export default async function InvoicePage({
       {!seller.gstin && (
         <div className="mb-6 p-4 bg-[#FFFDF0] border border-[#E8D87A] rounded-2xl print:hidden">
           <p className="font-sans text-[13px] text-[#7A6200]">
-            SELLER_GSTIN is not set — this invoice is missing a GST registration number and is not
+            SELLER_GSTIN is not set. This invoice is missing a GST registration number and is not
             valid for compliance purposes until that&apos;s configured.
           </p>
         </div>
@@ -151,7 +151,7 @@ export default async function InvoicePage({
               <br />
               {seller.city}, {seller.state} {seller.pincode}
               <br />
-              GSTIN: {seller.gstin || "—"}
+              GSTIN: {seller.gstin || "-"}
             </p>
           </div>
           <div className="text-right">
@@ -191,7 +191,7 @@ export default async function InvoicePage({
               Place of Supply
             </p>
             <p className="font-sans text-[14px] text-black leading-[22px]">
-              {buyerState || "—"} ({gstStateCode(buyerState)})
+              {buyerState || "-"} ({gstStateCode(buyerState)})
             </p>
             <p className="font-sans font-medium text-[11px] uppercase tracking-wide text-[#909090] mt-4 mb-2">
               Tax Type

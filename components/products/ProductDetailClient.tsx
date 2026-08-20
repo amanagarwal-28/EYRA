@@ -204,7 +204,7 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
                 >
                   <Image
                     src={product.images[activeImage]}
-                    alt={`${product.name} — view ${activeImage + 1}`}
+                    alt={`${product.name}, view ${activeImage + 1}`}
                     fill
                     className="object-contain p-4 transition-opacity duration-300"
                     priority
@@ -313,7 +313,7 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
                 ))}
               </div>
 
-              {/* Ring size picker — rings only */}
+              {/* Ring size picker, rings only */}
               {product.type === "ring" && (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">

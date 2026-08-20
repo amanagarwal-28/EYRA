@@ -67,7 +67,7 @@ export function CartClient() {
     items.length > 0 &&
     items.every((i) => checkedKeys.has(itemKey(i.product.id, i.size)));
 
-  // Server-authoritative totals — fall back to a client-side subtotal estimate
+  // Server-authoritative totals, fall back to a client-side subtotal estimate
   // only when the Medusa cart hasn't synced yet (no variantIds or pending sync).
   const totals = useMemo(() => {
     if (serverTotals) {
@@ -273,14 +273,14 @@ export function CartClient() {
             <div className="flex items-center justify-between">
               <span className="text-[#626262]">Tax (GST)</span>
               <span className="text-black">
-                {totals.isEstimate ? "—" : `₹${totals.tax.toLocaleString("en-IN")}`}
+                {totals.isEstimate ? "-" : `₹${totals.tax.toLocaleString("en-IN")}`}
               </span>
             </div>
 
             <div className="flex items-center justify-between">
               <span className="text-[#626262]">Delivery</span>
               {totals.isEstimate ? (
-                <span className="text-black">—</span>
+                <span className="text-black">-</span>
               ) : totals.delivery === 0 ? (
                 <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
               ) : (
@@ -318,7 +318,7 @@ export function CartClient() {
 
           <div className="text-center">
             <Link
-              href="/refund-policy"
+              href="/legal/returns"
               className="font-sans font-normal text-[13px] text-[#626262] underline underline-offset-2 hover:text-black transition-colors duration-200"
             >
               View refund policy

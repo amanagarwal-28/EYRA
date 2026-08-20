@@ -14,7 +14,7 @@ export function NewsletterBanner() {
         <FadeIn delay={80} className="max-w-md">
           <p className="font-sans font-light text-[0.86rem] leading-relaxed text-carbon">
             Stay connected for exclusive silver drops, special offers, styling inspiration, and the
-            latest arrivals — delivered straight to your inbox.
+            latest arrivals, delivered straight to your inbox.
           </p>
         </FadeIn>
 

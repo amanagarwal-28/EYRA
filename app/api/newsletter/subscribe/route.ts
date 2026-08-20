@@ -6,14 +6,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /* ── Delivery adapters ────────────────────────────────────── */
 
 async function addToMailchimp(email: string): Promise<void> {
-  // Mailchimp Marketing API v3 — list member upsert (PUT is idempotent)
+  // Mailchimp Marketing API v3, list member upsert (PUT is idempotent)
   const apiKey = process.env.MAILCHIMP_API_KEY!;
   const listId = process.env.MAILCHIMP_LIST_ID!;
   // Data-centre prefix is the last segment of the API key: xxxxx-us21 → us21
   const dc = apiKey.split("-").pop();
 
   const emailHash = Buffer.from(email.toLowerCase()).toString("hex");
-  // Mailchimp expects the MD5 hash of the lowercase email — we approximate with
+  // Mailchimp expects the MD5 hash of the lowercase email, we approximate with
   // a PUT to the members endpoint which upserts by subscriber hash automatically
   const url = `https://${dc}.api.mailchimp.com/3.0/lists/${listId}/members/${emailHash}`;
 
@@ -21,7 +21,7 @@ async function addToMailchimp(email: string): Promise<void> {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      // Mailchimp uses HTTP Basic — any string as username
+      // Mailchimp uses HTTP Basic, any string as username
       Authorization: `Basic ${Buffer.from(`eyra:${apiKey}`).toString("base64")}`,
     },
     body: JSON.stringify({
@@ -69,7 +69,7 @@ async function addViaMedusa(email: string): Promise<void> {
   if (searchRes.ok) {
     const searchData = await searchRes.json() as { customers?: { id: string }[] };
     if ((searchData.customers?.length ?? 0) > 0) {
-      // Already exists — silently succeed (no duplicate)
+      // Already exists, silently succeed (no duplicate)
       return;
     }
   }

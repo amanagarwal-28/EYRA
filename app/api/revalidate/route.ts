@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const { tag } = (await req.json().catch(() => ({}))) as { tag?: string };
   const target = tag || "products";
 
-  // A webhook needs data to expire immediately, not just be marked stale —
+  // A webhook needs data to expire immediately, not just be marked stale,
   // see revalidateTag's docs on { expire: 0 } for external-caller triggers.
   revalidateTag(target, { expire: 0 });
 

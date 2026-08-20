@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { storeConfig } from "@/config/storeConfig";
 
 /* ── Types ────────────────────────────────────────────────── */
 interface FormFields {
@@ -23,15 +24,15 @@ type TouchedFields = Partial<Record<keyof FormFields, boolean>>;
 const FAQ_ITEMS = [
   {
     q: "What materials are your jewellery made from?",
-    a: "All EYRA pieces are crafted from 925 sterling silver — 92.5% pure silver alloyed with copper for durability. Select pieces feature 18K gold vermeil or rhodium plating for enhanced finish and longevity.",
+    a: "All EYRA pieces are crafted from 925 sterling silver, which is 92.5% pure silver alloyed with copper for durability. Select pieces feature 18K gold vermeil or rhodium plating for enhanced finish and longevity.",
   },
   {
     q: "How long does shipping take?",
-    a: "Each piece is made to order and crafted within 7–10 business days. Standard shipping (3–5 days) is free above ₹499. Express delivery (1–2 days) is available at checkout for an additional charge.",
+    a: `Each piece is made to order and crafted within 7 to 10 business days. Standard shipping takes a further ${storeConfig.policy.deliveryDaysMin} to ${storeConfig.policy.deliveryDaysMax} working days and is free on prepaid orders above ₹${storeConfig.policy.freeShippingAbove.toLocaleString("en-IN")}.`,
   },
   {
     q: "What is your return and exchange policy?",
-    a: "We accept returns within 15 days of delivery for unworn, undamaged items in original packaging. Customised or engraved pieces are non-returnable. Raise a return request via your account or email support@eyra.com.",
+    a: `We accept returns within ${storeConfig.policy.returnDays} days of delivery, and exchanges within ${storeConfig.policy.exchangeDays} days, for unworn, undamaged items in original packaging. Customised or engraved pieces are non-returnable. Raise a return request via your account or email ${storeConfig.contact.supportEmail}.`,
   },
   {
     q: "How do I care for my silver jewellery?",
@@ -39,7 +40,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Do you offer customisation or engraving?",
-    a: "Yes! Many of our pieces can be personalised with names, initials, or short messages. Look for the 'Customise' option on individual product pages, or email us at support@eyra.com with your request.",
+    a: `Yes! Many of our pieces can be personalised with names, initials, or short messages. Look for the 'Customise' option on individual product pages, or email us at ${storeConfig.contact.supportEmail} with your request.`,
   },
   {
     q: "Is there a warranty on EYRA products?",

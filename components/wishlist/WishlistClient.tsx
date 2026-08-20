@@ -64,7 +64,7 @@ export function WishlistClient() {
 
           return (
             <div key={product.id} className="relative border-b border-r border-[#CFCFCF] flex flex-col items-center gap-4 py-8 px-6 group hover:bg-[#F7F7F7] transition-colors duration-200">
-              {/* Quick-view button — visible on hover */}
+              {/* Quick-view button, visible on hover */}
               <Link
                 href={`/products/${product.id}`}
                 aria-label="View product"

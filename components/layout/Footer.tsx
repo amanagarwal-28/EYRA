@@ -1,22 +1,23 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { NewsletterForm } from "./NewsletterForm";
+import { COLLECTIONS } from "@/config/collections";
 
+// Built from the collections config so the footer can never link to a
+// collection that has no products behind it.
 const SHOP_LINKS = [
-  { label: "All Collections",  href: "/collections"          },
-  { label: "New Arrivals",      href: "/new-arrivals"         },
-  { label: "Rings",             href: "/collections/rings"    },
-  { label: "Necklaces",         href: "/collections/necklaces"},
-  { label: "Bracelets",         href: "/collections/bracelets"},
-  { label: "Earrings",          href: "/collections/earrings" },
+  { label: "All Collections", href: "/collections" },
+  { label: "New Arrivals", href: "/new-arrivals" },
+  ...COLLECTIONS.map((c) => ({ label: c.label, href: `/collections/${c.slug}` })),
 ] as const;
 
 const COMPANY_LINKS = [
-  { label: "About EYRA",    href: "/about"          },
-  { label: "Craftsmanship", href: "/craftsmanship"  },
+  { label: "About EYRA",     href: "/about"          },
+  { label: "Craftsmanship",  href: "/craftsmanship"  },
   { label: "Sustainability", href: "/sustainability" },
-  { label: "Contact",       href: "/contact"        },
-  { label: "Careers",       href: "/careers"        },
+  { label: "Contact",        href: "/contact"        },
+  { label: "Support",        href: "/support"        },
+  { label: "Careers",        href: "/careers"        },
 ] as const;
 
 const LEGAL_LINKS = [
@@ -66,10 +67,10 @@ export function Footer() {
             <Logo variant="light" size="lg" />
 
             <p className="text-[0.82rem] font-light leading-relaxed text-stone max-w-[280px] tracking-[0.02em]">
-              Crafted from 925 sterling silver — for those who wear their identity.
+              Crafted from 925 sterling silver, for those who wear their identity.
             </p>
 
-            {/* Social links — lucide-react v1.16 omits brand icons; using SVG paths */}
+            {/* Social links, lucide-react v1.16 omits brand icons; using SVG paths */}
             <div className="flex items-center gap-5">
               <a
                 href="https://instagram.com/eyrajewelry"

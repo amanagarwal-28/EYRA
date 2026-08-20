@@ -2,7 +2,7 @@ import { timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 
 /**
- * Payment settlement reconciliation — cross-checks Razorpay's own record of
+ * Payment settlement reconciliation, cross-checks Razorpay's own record of
  * captured payments against Medusa orders, so a payment that Razorpay
  * captured but that never became a real order (or vice versa) doesn't sit
  * silently unnoticed.
@@ -55,7 +55,7 @@ async function fetchAllRazorpayPayments(fromUnix: number, toUnix: number): Promi
   let skip = 0;
   const count = 100;
 
-  // Razorpay caps a single page at 100 — loop until a short page tells us we're done.
+  // Razorpay caps a single page at 100, loop until a short page tells us we're done.
   for (let page = 0; page < 50; page++) {
     const url = new URL("https://api.razorpay.com/v1/payments");
     url.searchParams.set("from", String(fromUnix));

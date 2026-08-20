@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
   const secret = process.env.RAZORPAY_KEY_SECRET;
   if (!secret) {
-    // Hard failure — operating without a secret means signatures can never be
+    // Hard failure, operating without a secret means signatures can never be
     // verified, so no payment should be accepted.
     throw new Error("RAZORPAY_KEY_SECRET is not configured on this server.");
   }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   // The signature only proves order_id and payment_id are a genuine,
-  // linked Razorpay transaction — it says nothing about medusa_cart_id,
+  // linked Razorpay transaction, it says nothing about medusa_cart_id,
   // which rides along in the same request body and is fully
   // browser-controlled. Trusting it directly would let a customer pay for
   // a cheap cart, then resubmit verify with someone else's expensive
@@ -73,9 +73,9 @@ export async function POST(request: NextRequest) {
 
   if (!trustedCartId) {
     // No server-side record of this order (Redis unavailable, or the
-    // mapping expired) — we cannot safely trust the client-supplied cart
+    // mapping expired), we cannot safely trust the client-supplied cart
     // ID, so this route must not complete anything. Report the payment as
-    // verified (it is — the signature checked out) but leave completion to
+    // verified (it is, the signature checked out) but leave completion to
     // /api/razorpay/webhook, which independently re-derives the cart and
     // amount-checks any untrusted resolution before completing it.
     return Response.json({
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Signature is valid and the cart is server-verified — convert it into a
+  // Signature is valid and the cart is server-verified, convert it into a
   // confirmed order. Always use the trusted ID, never the client-supplied one.
   const { orderId: medusaOrderId } = await completeCart(trustedCartId);
 

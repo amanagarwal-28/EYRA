@@ -194,7 +194,7 @@ export function ProductsClient({
     const q = query.trim();
     if (q) {
       // Match at word starts only (e.g. "ring" -> "Ring"/"Rings") rather than
-      // anywhere in the string — plain substring matching means "ring" would
+      // anywhere in the string, plain substring matching means "ring" would
       // also match "earRING" inside every earring's name/type.
       const pattern = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
       result = result.filter(

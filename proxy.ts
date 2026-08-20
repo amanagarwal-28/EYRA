@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// /cart is deliberately not protected — guests can build a cart via
+// /cart is deliberately not protected, guests can build a cart via
 // localStorage + a server-side Medusa cart ID without an account, and only
 // need to sign in once they actually proceed to /checkout.
 const isProtectedRoute = createRouteMatcher([

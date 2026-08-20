@@ -13,7 +13,7 @@ import { applyRateLimit } from "@/lib/rateLimit";
  * Complete a Cash-on-Delivery cart into a real Medusa order.
  *
  * COD takes no upfront payment, but Medusa's cart-completion workflow still
- * requires an initialized payment session before it will produce an order —
+ * requires an initialized payment session before it will produce an order,
  * `pp_system_default` (Medusa's built-in manual/no-op provider) is exactly
  * what this is for.
  */

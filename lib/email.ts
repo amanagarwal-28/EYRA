@@ -2,8 +2,8 @@
  * Server-only: shared Resend email sending.
  *
  * Required env vars:
- *   RESEND_API_KEY   — from https://resend.com/api-keys
- *   ORDER_EMAIL_FROM — optional, defaults below
+ *   RESEND_API_KEY  , from https://resend.com/api-keys
+ *   ORDER_EMAIL_FROM, optional, defaults below
  */
 import "server-only";
 
@@ -16,7 +16,7 @@ export async function sendEmail(params: {
 }): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn(`[email] RESEND_API_KEY not set — skipping "${params.subject}" to ${params.to}`);
+    console.warn(`[email] RESEND_API_KEY not set, skipping "${params.subject}" to ${params.to}`);
     return false;
   }
 

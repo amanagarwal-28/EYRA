@@ -51,7 +51,7 @@ interface DisplayTotals {
   delivery: number;
   discount: number;
   total: number;
-  /** True when Medusa cart hasn't synced yet — values are client estimates. */
+  /** True when Medusa cart hasn't synced yet, values are client estimates. */
   isEstimate: boolean;
 }
 
@@ -180,13 +180,13 @@ function OrderSidebar({ items, totals }: { items: CartItem[]; totals: DisplayTot
         <div className="flex justify-between">
           <span className="text-[#626262]">Tax (GST)</span>
           <span className="text-black">
-            {totals.isEstimate ? "—" : `₹${totals.tax.toLocaleString("en-IN")}`}
+            {totals.isEstimate ? "-" : `₹${totals.tax.toLocaleString("en-IN")}`}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-[#626262]">Delivery</span>
           {totals.isEstimate ? (
-            <span className="text-black">—</span>
+            <span className="text-black">-</span>
           ) : totals.delivery === 0 ? (
             <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
           ) : (
@@ -427,7 +427,7 @@ function ReviewStep({
         </div>
       </div>
 
-      {/* Price breakdown — all values come from Medusa serverTotals */}
+      {/* Price breakdown, all values come from Medusa serverTotals */}
       <div className="rounded-2xl border border-[#E1E1E1] overflow-hidden">
         <div className="bg-[#F7F7F7] px-5 py-3">
           <p className="font-sans font-medium text-[12px] text-[#626262] uppercase tracking-wider">Price Breakdown</p>
@@ -446,13 +446,13 @@ function ReviewStep({
           <div className="flex justify-between">
             <span className="text-[#626262]">Tax (GST)</span>
             <span className="text-black">
-              {totals.isEstimate ? "—" : `₹${totals.tax.toLocaleString("en-IN")}`}
+              {totals.isEstimate ? "-" : `₹${totals.tax.toLocaleString("en-IN")}`}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#626262]">Delivery</span>
             {totals.isEstimate ? (
-              <span className="text-black">—</span>
+              <span className="text-black">-</span>
             ) : totals.delivery === 0 ? (
               <span className="font-medium" style={{ color: "#47B10A" }}>FREE</span>
             ) : (
@@ -478,7 +478,7 @@ function ReviewStep({
             {shippingForm.addressLine1}
             {shippingForm.addressLine2 && `, ${shippingForm.addressLine2}`}
             <br />
-            {shippingForm.city}, {shippingForm.state} — {shippingForm.pincode}
+            {shippingForm.city}, {shippingForm.state} {shippingForm.pincode}
             <br />
             +91 {shippingForm.phone}
           </p>
@@ -533,7 +533,7 @@ function PaymentStep({
 
 
       <div className="flex flex-col gap-3">
-        {/* COD — hidden when courier doesn't support it for this pincode */}
+        {/* COD, hidden when courier doesn't support it for this pincode */}
         {(!serviceability || serviceability.availablePaymentMethods.includes("cod")) && <button
           onClick={() => onSelectMethod("cod")}
           className={`flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-colors duration-150 w-full ${
@@ -567,7 +567,7 @@ function PaymentStep({
             {paymentMethod === "prepaid" && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
           </div>
           <div className="flex-1">
-            <p className="font-sans font-medium text-[16px] text-black">Prepaid — Razorpay</p>
+            <p className="font-sans font-medium text-[16px] text-black">Prepaid via Razorpay</p>
             <p className="font-sans font-normal text-[13px] text-[#626262] mt-1">
               Pay securely via UPI, credit/debit card, net banking, or wallet.
             </p>
@@ -584,7 +584,7 @@ function PaymentStep({
         </button>
       </div>
 
-      {/* Security badge — shown when prepaid selected */}
+      {/* Security badge, shown when prepaid selected */}
       {paymentMethod === "prepaid" && (
         <div className="flex items-start gap-3 p-4 bg-[#F7FFF4] border border-[#C8EEB8] rounded-2xl">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="mt-0.5 flex-shrink-0" aria-hidden="true">
@@ -711,7 +711,7 @@ export function CheckoutClient() {
   const [payLoading, setPayLoading] = useState(false);
   const [razorpayError, setRazorpayError] = useState("");
 
-  /* Razorpay script readiness — set true by Script's onLoad callback */
+  /* Razorpay script readiness, set true by Script's onLoad callback */
   const [razorpayReady, setRazorpayReady] = useState(false);
 
   /* Prefill Clerk user data into shipping form on first load */
@@ -724,7 +724,7 @@ export function CheckoutClient() {
     }));
   }, [user]);
 
-  /* Pincode serviceability check — routed through our server to avoid
+  /* Pincode serviceability check, routed through our server to avoid
      direct third-party browser calls and validate against real courier routes. */
   useEffect(() => {
     if (!/^\d{6}$/.test(form.pincode)) {
@@ -806,7 +806,7 @@ export function CheckoutClient() {
         phone: form.phone,
       };
 
-      // Turn the cart into a real Medusa order before anything else — a COD
+      // Turn the cart into a real Medusa order before anything else, a COD
       // "order" with no backend record means no inventory tracking and no
       // order history entry.
       let confirmedOrderId: string | null = null;
@@ -866,7 +866,7 @@ export function CheckoutClient() {
       return;
     }
 
-    /* ── Prepaid — Razorpay ───────────────────────────────────── */
+    /* ── Prepaid via Razorpay ───────────────────────────────────── */
 
     // Verify the Script has loaded before proceeding
     if (!razorpayReady || !window.Razorpay) {
@@ -902,7 +902,7 @@ export function CheckoutClient() {
     };
 
     // Obtain a server-generated Razorpay order_id from Medusa.
-    // This token is what makes HMAC signature verification possible —
+    // This token is what makes HMAC signature verification possible,
     // Razorpay includes razorpay_signature in the response only when order_id is present.
     let razorpayOrderId: string | null = null;
     try {
@@ -915,7 +915,7 @@ export function CheckoutClient() {
         const data = await res.json() as { razorpayOrderId?: string | null };
         razorpayOrderId = data.razorpayOrderId ?? null;
       } else {
-        console.error(`[EYRA Security] create-order API returned ${res.status} — cannot proceed.`);
+        console.error(`[EYRA Security] create-order API returned ${res.status}, cannot proceed.`);
       }
     } catch (err) {
       console.error("[EYRA Security] create-order request failed:", err);
@@ -929,7 +929,7 @@ export function CheckoutClient() {
     // spoofed payment_id to be accepted as a completed order.
     if (!razorpayOrderId) {
       console.error(
-        "[EYRA Security] TRANSACTION BLOCKED — Razorpay order_id is null. " +
+        "[EYRA Security] TRANSACTION BLOCKED. Razorpay order_id is null. " +
         "The Razorpay provider is likely not registered in Medusa. " +
         `Cart: ${cartId}, Amount: ₹${displayTotals.total}. ` +
         "Opening the checkout modal without order_id would bypass cryptographic signature verification."
@@ -943,16 +943,16 @@ export function CheckoutClient() {
 
     const oid = generateOrderId();
 
-    // Clerk user data for prefill — supplements the shipping form
+    // Clerk user data for prefill, supplements the shipping form
     const clerkName = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
 
     const rzpOptions: RazorpayOptions = {
       key,
-      amount: displayTotals.total * 100, // paise — always uses Medusa server total
+      amount: displayTotals.total * 100, // paise, always uses Medusa server total
       currency: "INR",
       name: "EYRA",
       description: "Sterling silver jewellery order",
-      order_id: razorpayOrderId, // guaranteed non-null — hard-blocked above
+      order_id: razorpayOrderId, // guaranteed non-null, hard-blocked above
       prefill: {
         name: form.fullName || clerkName,
         email: clerkEmail,
@@ -963,7 +963,7 @@ export function CheckoutClient() {
         address: `${form.addressLine1}, ${form.city}, ${form.state} ${form.pincode}`,
         // Fallback cart reference for /api/razorpay/webhook when the
         // server-side mapping is unavailable (no Upstash configured). Treated
-        // as untrusted there — it is amount-checked before completing.
+        // as untrusted there, it is amount-checked before completing.
         medusa_cart_id: cartId,
       },
       theme: { color: "#000000" },
@@ -1066,7 +1066,7 @@ export function CheckoutClient() {
 
   return (
     <>
-      {/* Razorpay SDK — loaded lazily, fires setRazorpayReady on success */}
+      {/* Razorpay SDK, loaded lazily, fires setRazorpayReady on success */}
       <Script
         id="razorpay-checkout"
         src="https://checkout.razorpay.com/v1/checkout.js"

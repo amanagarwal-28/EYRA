@@ -9,11 +9,11 @@ const MEDUSA_BASE = (
 
 /**
  * Shiprocket sends its order/shipment status payload with varying field
- * names across event types and API versions — extract defensively rather
+ * names across event types and API versions, extract defensively rather
  * than assume one exact shape.
  *
  * Route path deliberately avoids the words "shiprocket"/"kartrocket"/"sr"/
- * "kr" — Shiprocket's own webhook config screen warns it won't call a URL
+ * "kr", Shiprocket's own webhook config screen warns it won't call a URL
  * containing them.
  */
 interface ShiprocketWebhookPayload {
@@ -69,9 +69,9 @@ async function updateOrderShipmentStatus(
 export async function POST(request: NextRequest) {
   const secret = process.env.SHIPROCKET_WEBHOOK_SECRET;
   if (!secret) {
-    // No secret configured — refuse rather than accept unauthenticated
+    // No secret configured, refuse rather than accept unauthenticated
     // writes to order metadata.
-    console.error("[tracking/webhook] SHIPROCKET_WEBHOOK_SECRET not configured — rejecting.");
+    console.error("[tracking/webhook] SHIPROCKET_WEBHOOK_SECRET not configured, rejecting.");
     return Response.json({ error: "Webhook not configured." }, { status: 503 });
   }
 
@@ -92,17 +92,17 @@ export async function POST(request: NextRequest) {
   const awbCode = payload.awb ?? payload.awb_code;
 
   if (!eyraOrderRef || !status) {
-    console.warn("[tracking/webhook] Payload missing order_id/status — full body:", payload);
+    console.warn("[tracking/webhook] Payload missing order_id/status, full body:", payload);
     return Response.json({ received: true, acted: false, reason: "missing_fields" });
   }
 
   const medusaOrderId = await lookupOrderForShipment(eyraOrderRef);
   if (!medusaOrderId) {
     // Either Redis isn't configured, or this shipment predates the mapping
-    // being written — nothing to update, but still acknowledge receipt so
+    // being written, nothing to update, but still acknowledge receipt so
     // Shiprocket doesn't retry indefinitely.
     console.warn(
-      `[tracking/webhook] No known order for reference ${eyraOrderRef} — cannot apply status "${status}".`
+      `[tracking/webhook] No known order for reference ${eyraOrderRef}, cannot apply status "${status}".`
     );
     return Response.json({ received: true, acted: false, reason: "order_unresolved" });
   }

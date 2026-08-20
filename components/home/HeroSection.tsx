@@ -26,7 +26,7 @@ export function HeroSection() {
       {/* ── Hero image / video container ─────────────── */}
       <div className="max-w-screen-xl mx-auto px-6 lg:px-16 pb-0">
         <div className="relative overflow-hidden bg-pewter" style={{ height: "clamp(340px, 55vw, 700px)" }}>
-          {/* Video element — swap src for a real .mp4 when available */}
+          {/* Video element, swap src for a real .mp4 when available */}
           <video
             autoPlay
             muted
@@ -38,7 +38,7 @@ export function HeroSection() {
             {/* <source src="/videos/hero.mp4" type="video/mp4" /> */}
           </video>
 
-          {/* Dark gradient overlay — bottom only, preserves image */}
+          {/* Dark gradient overlay, bottom only, preserves image */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
 
           {/* Left caption */}

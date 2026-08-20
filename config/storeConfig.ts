@@ -2,10 +2,10 @@
  * Centralised business constants for EYRA.
  *
  * All values fall back to safe defaults but can be overridden at runtime via
- * server-side environment variables — no redeploy required when logistics
+ * server-side environment variables, no redeploy required when logistics
  * thresholds or tax rates change.
  *
- * Env vars (never prefixed with NEXT_PUBLIC_ — server-only):
+ * Env vars (never prefixed with NEXT_PUBLIC_, server-only):
  *   JEWELRY_HSN_CODE          BIS HSN code (default: "7113")
  *   JEWELRY_GST_RATE          GST % as a number (default: 3)
  *   SHIP_WEIGHT_RING_G        Ring weight in grams (default: 6)
@@ -16,7 +16,7 @@
  *   SHIP_BOX_LENGTH_CM        Jewellery box length in cm (default: 10)
  *   SHIP_BOX_BREADTH_CM       Jewellery box breadth in cm (default: 8)
  *   SHIP_BOX_HEIGHT_CM        Jewellery box height in cm (default: 3)
- *   SELLER_GSTIN              15-character GST registration number (no default — invoices flag it missing)
+ *   SELLER_GSTIN              15-character GST registration number (no default, invoices flag it missing)
  *   SELLER_LEGAL_NAME         Registered business name for invoices
  *   SELLER_ADDRESS_LINE1      Registered address, line 1
  *   SELLER_ADDRESS_LINE2      Registered address, line 2
@@ -38,7 +38,7 @@ function envString(key: string, fallback: string): string {
 
 export const storeConfig = {
   jewelry: {
-    /** Articles of jewelry of precious metal — BIS standard HSN. */
+    /** Articles of jewelry of precious metal, BIS standard HSN. */
     hsnCode: envString("JEWELRY_HSN_CODE", "7113"),
     /** GST rate (%) applied to each order item in Shiprocket payloads. */
     gstRate: envFloat("JEWELRY_GST_RATE", 3),
@@ -64,7 +64,7 @@ export const storeConfig = {
   },
 
   /**
-   * Registered-seller details for GST invoices — the "Bill From" identity,
+   * Registered-seller details for GST invoices, the "Bill From" identity,
    * confirmed against the real GSTIN (state code 20 = Jharkhand). This is
    * deliberately independent of the Shiprocket pickup address above: the
    * warehouse a courier collects packages from has no bearing on where the
@@ -79,5 +79,34 @@ export const storeConfig = {
     city: envString("SELLER_CITY", "Garhwa"),
     state: envString("SELLER_STATE", "Jharkhand"),
     pincode: envString("SELLER_PINCODE", "822114"),
+  },
+
+  /**
+   * Public contact points. These are quoted verbatim in the policy pages and
+   * the contact page, so they live here rather than being retyped per page.
+   * The domain matches the one EYRA actually owns and sends mail from.
+   */
+  contact: {
+    supportEmail: envString("SUPPORT_PUBLIC_EMAIL", "support@eyra.org.in"),
+    pressEmail: envString("PRESS_PUBLIC_EMAIL", "press@eyra.org.in"),
+    careersEmail: envString("CAREERS_PUBLIC_EMAIL", "careers@eyra.org.in"),
+    /** Support hours shown on the contact page. */
+    hours: "Monday to Saturday, 10am to 7pm IST",
+  },
+
+  /**
+   * Customer-facing policy windows. The product page badges, the support FAQ,
+   * and the returns policy all read from here so they cannot drift apart.
+   */
+  policy: {
+    returnDays: envFloat("POLICY_RETURN_DAYS", 2),
+    exchangeDays: envFloat("POLICY_EXCHANGE_DAYS", 10),
+    /** Working days before a domestic order is typically delivered. */
+    deliveryDaysMin: envFloat("POLICY_DELIVERY_DAYS_MIN", 3),
+    deliveryDaysMax: envFloat("POLICY_DELIVERY_DAYS_MAX", 7),
+    /** Order value (INR) above which shipping is free. */
+    freeShippingAbove: envFloat("POLICY_FREE_SHIPPING_ABOVE", 999),
+    /** Warranty on manufacturing defects, in months. */
+    warrantyMonths: envFloat("POLICY_WARRANTY_MONTHS", 6),
   },
 } as const;

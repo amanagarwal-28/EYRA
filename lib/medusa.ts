@@ -22,7 +22,7 @@ const PUB_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? "";
 
 /**
  * Medusa v2 stores/returns amounts in MAJOR units, not the smallest currency
- * unit — ₹2,499 is `2499`, not `249900`. (Confirmed against the installed
+ * unit, ₹2,499 is `2499`, not `249900`. (Confirmed against the installed
  * @medusajs/pricing Price model and Medusa's own demo seed script.)
  */
 const CURRENCY_CODE = "inr";
@@ -128,7 +128,7 @@ async function medusaFetch<T>(
     });
 
     if (!res.ok) {
-      console.error(`[medusa] ${res.status} ${res.statusText} — ${url.toString()}`);
+      console.error(`[medusa] ${res.status} ${res.statusText}, ${url.toString()}`);
       return null;
     }
 
@@ -143,7 +143,7 @@ async function medusaFetch<T>(
  * Resolve the Medusa region ID for CURRENCY_CODE.
  *
  * The Store API's /store/products endpoint takes `region_id`, not
- * `currency_code` — passing currency_code directly is rejected as an
+ * `currency_code`, passing currency_code directly is rejected as an
  * unrecognized param. Cached at module scope since regions rarely change.
  */
 let cachedRegionId: string | null = null;

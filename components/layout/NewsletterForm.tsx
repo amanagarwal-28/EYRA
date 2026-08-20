@@ -31,7 +31,7 @@ export function NewsletterForm({ variant = "dark" }: NewsletterFormProps) {
   if (status === "success") {
     return (
       <p className="text-[0.78rem] font-light tracking-[0.1em] text-stone py-3">
-        You&apos;re on the list — welcome to EYRA.
+        You&apos;re on the list. Welcome to EYRA.
       </p>
     );
   }

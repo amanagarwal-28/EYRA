@@ -132,7 +132,7 @@ export default async function OrderSuccessPage({
           <path d="M12 7v5M12 16.5v.5" stroke="#B8960C" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         <p className="font-sans font-normal text-[13px] text-[#7A6200] leading-[20px]">
-          Made to order — each piece is handcrafted within 7–10 business days.
+          Made to order. Each piece is handcrafted within 7 to 10 business days.
           A confirmation will be sent to your registered email.
         </p>
       </div>
