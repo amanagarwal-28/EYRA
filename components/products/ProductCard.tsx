@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import type { Product } from "./types";
 import { useCartStore } from "@/store/useStore";
 
@@ -13,8 +14,9 @@ export function ProductCard({ product }: { product: Product }) {
     <article className="group flex flex-col items-center gap-[15px] py-8 px-6 h-full bg-white hover:bg-[#F7F7F7] transition-colors duration-200">
       {/* Image container */}
       <div className="relative w-full aspect-square flex items-center justify-center overflow-hidden">
-        <button
-          aria-label="Quick view"
+        <Link
+          href={`/products/${product.id}`}
+          aria-label="View product"
           className="absolute top-3 right-3 w-[42px] h-[42px] rounded-full bg-white border border-[#B4B4B4] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
         >
           <svg
@@ -30,9 +32,9 @@ export function ProductCard({ product }: { product: Product }) {
           >
             <path d="M7 17L17 7M17 7H7M17 7v10" />
           </svg>
-        </button>
+        </Link>
 
-        <div className="relative w-[70%] h-[70%]">
+        <Link href={`/products/${product.id}`} className="relative w-[70%] h-[70%]">
           <Image
             src={product.images[0]}
             alt={product.name}
@@ -40,13 +42,15 @@ export function ProductCard({ product }: { product: Product }) {
             className="object-contain"
             sizes="(max-width: 640px) 40vw, (max-width: 1024px) 25vw, 206px"
           />
-        </div>
+        </Link>
       </div>
 
       {/* Product info */}
       <div className="flex flex-col items-center gap-[7px] w-full">
         <h3 className="font-sans font-normal text-[20px] leading-[30px] text-center text-black w-full">
-          {product.name}
+          <Link href={`/products/${product.id}`} className="hover:underline underline-offset-2">
+            {product.name}
+          </Link>
         </h3>
         <p className="font-sans font-normal text-[15px] leading-[22px] text-center text-[#A0A0A0] line-clamp-2 w-full">
           {product.description}
