@@ -90,7 +90,7 @@ export interface CheckoutShippingAddress {
   phone: string;
 }
 
-function splitName(fullName: string): { first_name: string; last_name: string } {
+export function splitName(fullName: string): { first_name: string; last_name: string } {
   const [first_name, ...rest] = fullName.trim().split(/\s+/);
   return { first_name: first_name || fullName, last_name: rest.join(" ") };
 }

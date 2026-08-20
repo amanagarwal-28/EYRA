@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { storeConfig } from "@/config/storeConfig";
 import { rememberOrderForShipment } from "@/lib/shiprocket-store";
+import { splitName } from "@/lib/medusa-order";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 const MEDUSA_BASE = (
@@ -88,13 +89,15 @@ async function createShiprocketOrder(
   token: string
 ): Promise<ShiprocketOrderResponse | null> {
   const { shipping, items, eyraOrderRef, paymentMethod, subtotal } = body;
+  const { first_name, last_name } = splitName(shipping.fullName);
 
   const payload = {
     order_id: eyraOrderRef,
     order_date: orderDate(),
     pickup_location: process.env.SHIPROCKET_PICKUP_LOCATION ?? "Primary",
 
-    billing_customer_name: shipping.fullName,
+    billing_customer_name: first_name,
+    billing_last_name: last_name,
     billing_address: shipping.addressLine1,
     billing_address_2: shipping.addressLine2 ?? "",
     billing_city: shipping.city,
