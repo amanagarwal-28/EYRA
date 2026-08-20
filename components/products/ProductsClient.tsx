@@ -191,13 +191,14 @@ export function ProductsClient({
 
   const filtered = useMemo(() => {
     let result = [...products];
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (q) {
+      // Match at word starts only (e.g. "ring" -> "Ring"/"Rings") rather than
+      // anywhere in the string — plain substring matching means "ring" would
+      // also match "earRING" inside every earring's name/type.
+      const pattern = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
       result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          p.type.toLowerCase().includes(q)
+        (p) => pattern.test(p.name) || pattern.test(p.description) || pattern.test(p.type)
       );
     }
     if (selectedTypes.length > 0) {
