@@ -16,6 +16,13 @@
  *   SHIP_BOX_LENGTH_CM        Jewellery box length in cm (default: 10)
  *   SHIP_BOX_BREADTH_CM       Jewellery box breadth in cm (default: 8)
  *   SHIP_BOX_HEIGHT_CM        Jewellery box height in cm (default: 3)
+ *   SELLER_GSTIN              15-character GST registration number (no default — invoices flag it missing)
+ *   SELLER_LEGAL_NAME         Registered business name for invoices
+ *   SELLER_ADDRESS_LINE1      Registered address, line 1
+ *   SELLER_ADDRESS_LINE2      Registered address, line 2
+ *   SELLER_CITY               Registered city
+ *   SELLER_STATE              Registered state (must match a GST_STATE_CODES key in lib/gst.ts)
+ *   SELLER_PINCODE            Registered PIN code
  */
 
 function envFloat(key: string, fallback: number): number {
@@ -54,5 +61,21 @@ export const storeConfig = {
       breadth: envFloat("SHIP_BOX_BREADTH_CM", 8),
       height: envFloat("SHIP_BOX_HEIGHT_CM", 3),
     },
+  },
+
+  /**
+   * Registered-seller details for GST invoices. Defaults match the pickup
+   * address already on file with Shiprocket — only the GSTIN has no real
+   * default, since that's a specific registration number this codebase
+   * cannot know on its own.
+   */
+  seller: {
+    legalName: envString("SELLER_LEGAL_NAME", "EYRA JEWELS PRIVATE LIMITED"),
+    gstin: envString("SELLER_GSTIN", ""),
+    addressLine1: envString("SELLER_ADDRESS_LINE1", "692, Ground Floor, 4th Main Road, ISRO Layout"),
+    addressLine2: envString("SELLER_ADDRESS_LINE2", "Near Star Bazaar"),
+    city: envString("SELLER_CITY", "Bengaluru"),
+    state: envString("SELLER_STATE", "Karnataka"),
+    pincode: envString("SELLER_PINCODE", "560111"),
   },
 } as const;

@@ -344,10 +344,16 @@ export default async function OrderDetailPage({
             Placed {formatDate(order.created_at)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <span className="font-sans font-semibold text-[22px] text-black">
             {formatAmount(order.total)}
           </span>
+          <Link
+            href={`/orders/${order.id}/invoice`}
+            className="font-sans text-[13px] text-black underline underline-offset-2 hover:text-[#626262] transition-colors duration-200"
+          >
+            View Invoice
+          </Link>
         </div>
       </div>
 
