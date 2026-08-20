@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 
-import { completeCart } from "@/lib/medusa-order";
+import { completeCart, persistRazorpayPaymentId } from "@/lib/medusa-order";
 import { lookupCartForRazorpayOrder } from "@/lib/razorpay-store";
 import { sendOrderConfirmationEmail } from "@/lib/order-email";
 import { applyRateLimit } from "@/lib/rateLimit";
@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  await persistRazorpayPaymentId(medusaOrderId, razorpay_order_id, razorpay_payment_id);
   await sendOrderConfirmationEmail(medusaOrderId);
 
   return Response.json({

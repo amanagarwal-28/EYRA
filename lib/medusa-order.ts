@@ -322,3 +322,45 @@ export async function completeCart(cartId: string): Promise<CompleteCartOutcome>
     return { orderId: null, retryable: true };
   }
 }
+
+/* ── Payment reconciliation metadata ─────────────────────────
+ *
+ * Without this, there is no durable link between a Medusa order and the
+ * Razorpay payment that paid for it — the only record is a Redis
+ * idempotency key that expires after 30 days. Persisting it onto the
+ * order itself is what makes reconciling against Razorpay's own records
+ * possible at all, at any point in the future.
+ */
+
+const ADMIN_KEY = process.env.MEDUSA_ADMIN_API_KEY ?? "";
+
+export async function persistRazorpayPaymentId(
+  orderId: string,
+  razorpayOrderId: string,
+  razorpayPaymentId: string
+): Promise<void> {
+  if (!ADMIN_KEY) return;
+  try {
+    await fetch(`${BASE_URL}/admin/orders/${orderId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${ADMIN_KEY}`,
+      },
+      body: JSON.stringify({
+        metadata: {
+          razorpay_order_id: razorpayOrderId,
+          razorpay_payment_id: razorpayPaymentId,
+        },
+      }),
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error(
+      "[medusa-order] failed to persist Razorpay payment id for order",
+      orderId,
+      ":",
+      err
+    );
+  }
+}

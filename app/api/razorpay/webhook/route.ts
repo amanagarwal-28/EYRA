@@ -20,7 +20,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 
-import { completeCart, fetchCartSnapshot } from "@/lib/medusa-order";
+import { completeCart, fetchCartSnapshot, persistRazorpayPaymentId } from "@/lib/medusa-order";
 import { sendOrderConfirmationEmail } from "@/lib/order-email";
 import {
   claimPayment,
@@ -233,6 +233,7 @@ export async function POST(request: NextRequest) {
     `medusa_order: ${orderId}, payment: ${payment.id}, cart resolved via ${cartSource}.`
   );
 
+  await persistRazorpayPaymentId(orderId, payment.order_id ?? "", payment.id);
   await sendOrderConfirmationEmail(orderId);
 
   return Response.json({ received: true, acted: true, medusa_order_id: orderId });
