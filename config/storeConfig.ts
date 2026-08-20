@@ -64,10 +64,15 @@ export const storeConfig = {
   },
 
   /**
-   * Registered-seller details for GST invoices. Defaults match the pickup
-   * address already on file with Shiprocket — only the GSTIN has no real
-   * default, since that's a specific registration number this codebase
-   * cannot know on its own.
+   * Registered-seller details for GST invoices.
+   *
+   * The business's actual GSTIN (state code 20) confirms GST registration is
+   * in Jharkhand, NOT Karnataka — state defaults to that. addressLine1/2,
+   * city, and pincode below still default to the Bengaluru warehouse address
+   * on file with Shiprocket, which is almost certainly NOT the registered
+   * address for a Jharkhand GSTIN. Set SELLER_ADDRESS_LINE1/2, SELLER_CITY,
+   * and SELLER_PINCODE to the real registered address before relying on
+   * invoices for anything other than internal use.
    */
   seller: {
     legalName: envString("SELLER_LEGAL_NAME", "EYRA JEWELS PRIVATE LIMITED"),
@@ -75,7 +80,7 @@ export const storeConfig = {
     addressLine1: envString("SELLER_ADDRESS_LINE1", "692, Ground Floor, 4th Main Road, ISRO Layout"),
     addressLine2: envString("SELLER_ADDRESS_LINE2", "Near Star Bazaar"),
     city: envString("SELLER_CITY", "Bengaluru"),
-    state: envString("SELLER_STATE", "Karnataka"),
+    state: envString("SELLER_STATE", "Jharkhand"),
     pincode: envString("SELLER_PINCODE", "560111"),
   },
 } as const;
