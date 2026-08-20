@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 
 export default function ErrorBoundary({
   error,
@@ -12,6 +13,7 @@ export default function ErrorBoundary({
 }) {
   useEffect(() => {
     console.error("[EYRA] Unhandled route error:", error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
