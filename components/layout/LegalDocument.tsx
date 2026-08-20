@@ -17,19 +17,22 @@ export function LegalDocument({
   standfirst,
   updated,
   sections,
+  eyebrow,
 }: {
   title: string;
   standfirst: string;
-  /** Human readable last-reviewed date, e.g. "20 August 2026". */
+  /** Human readable last-reviewed date, e.g. "August 2026". */
   updated: string;
   sections: LegalSection[];
+  eyebrow?: string;
 }) {
   return (
     <section className="bg-white pb-20">
       <PageHeader
         title={title}
         standfirst={standfirst}
-        crumbs={[{ label: "Legal" }, { label: title }]}
+        eyebrow={eyebrow}
+        crumbs={[{ label: title }]}
       />
 
       <div className="max-w-screen-xl mx-auto px-6 lg:px-10">

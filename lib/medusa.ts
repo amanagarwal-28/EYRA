@@ -168,13 +168,17 @@ async function getRegionId(): Promise<string | undefined> {
  * Map Medusa's open-ended product type to the three types our UI understands.
  * Falls back to keyword matching on title/handle before defaulting to "ring".
  */
-function normalizeType(p: MedusaProduct): "ring" | "chain" | "earring" {
+function normalizeType(p: MedusaProduct): "ring" | "chain" | "earring" | "bracelet" {
   const raw = p.type?.value?.toLowerCase() ?? "";
-  if (raw === "ring" || raw === "chain" || raw === "earring") {
+  if (raw === "ring" || raw === "chain" || raw === "earring" || raw === "bracelet") {
     return raw;
   }
   const text = `${p.title} ${p.handle}`.toLowerCase();
-  if (text.includes("chain") || text.includes("link") || text.includes("necklace")) return "chain";
+  // Bracelets are checked before chains: a "bracelet chain" is a bracelet.
+  if (text.includes("bracelet") || text.includes("bangle") || text.includes("cuff bracelet")) {
+    return "bracelet";
+  }
+  if (text.includes("chain") || text.includes("link") || text.includes("necklace") || text.includes("pendant")) return "chain";
   if (
     text.includes("earring") ||
     text.includes("ear cuff") ||
@@ -267,10 +271,11 @@ function toDetailProduct(p: MedusaProduct): DetailProduct {
     : [];
 
   // Quality badges come from Medusa product tags; fall back to sensible defaults
-  const defaultSpecs: Record<"ring" | "chain" | "earring", string[]> = {
+  const defaultSpecs: Record<"ring" | "chain" | "earring" | "bracelet", string[]> = {
     ring: ["925 Sterling", "Hallmarked", "BIS Certified", "Anti-tarnish"],
     chain: ["925 Sterling", "Nickel Free", "Hallmarked", "Anti-tarnish"],
     earring: ["925 Sterling", "Anti-tarnish", "Hypoallergenic", "Hallmarked"],
+    bracelet: ["925 Sterling", "Hallmarked", "BIS Certified", "Anti-tarnish"],
   };
   const specs =
     p.tags && p.tags.length > 0

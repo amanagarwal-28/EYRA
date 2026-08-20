@@ -30,8 +30,8 @@ export const COLLECTIONS: readonly Collection[] = [
     image: "/images/collection-1.jpg",
   },
   {
-    slug: "chains",
-    label: "Chains",
+    slug: "necklaces",
+    label: "Necklaces & Pendants",
     description:
       "Rope twists, serpentine links, and everyday pendants built to layer.",
     types: ["chain"],
@@ -44,6 +44,14 @@ export const COLLECTIONS: readonly Collection[] = [
       "Cuffs, hoops, and drops finished to sit light and stay tarnish free.",
     types: ["earring"],
     image: "/images/collection-3.jpg",
+  },
+  {
+    slug: "bracelets",
+    label: "Bracelets",
+    description:
+      "Cuffs and link bracelets in solid 925 sterling, sized to sit close.",
+    types: ["bracelet"],
+    image: "/images/product-4.jpg",
   },
   {
     slug: "for-her",
@@ -66,14 +74,16 @@ export const COLLECTIONS: readonly Collection[] = [
 /**
  * Legacy and colloquial slugs kept alive so older links, bookmarks, and any
  * indexed URLs resolve instead of 404ing. "Necklaces" is what customers search
- * for; "chains" is what the catalogue calls the same product type.
+ * for; "chain" is what the catalogue calls the same product type.
  */
 const SLUG_ALIASES: Record<string, string> = {
-  necklaces: "chains",
-  necklace: "chains",
-  chain: "chains",
+  chains: "necklaces",
+  chain: "necklaces",
+  necklace: "necklaces",
+  pendants: "necklaces",
   ring: "rings",
   earring: "earrings",
+  bracelet: "bracelets",
   her: "for-her",
   him: "for-him",
 };

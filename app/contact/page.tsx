@@ -22,12 +22,12 @@ const QUICK_LINKS = [
   {
     label: "Start a return",
     description: `Returns within ${policy.returnDays} days, exchanges within ${policy.exchangeDays} days.`,
-    href: "/legal/returns",
+    href: "/refund-policy",
   },
   {
     label: "Shipping and delivery",
     description: "Timelines, charges, and coverage across India.",
-    href: "/legal/shipping",
+    href: "/shipping-policy",
   },
   {
     label: "Common questions",
@@ -72,6 +72,18 @@ export default function ContactPage() {
                 <p className="font-sans font-light text-[16px] leading-[26px] text-[#505050] mt-2">
                   {contact.hours}
                 </p>
+                {contact.whatsapp && (
+                  <p className="mt-3">
+                    <a
+                      href={`https://wa.me/${contact.whatsapp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-sans font-light text-[16px] leading-[26px] text-black underline underline-offset-4 hover:text-[#626262] transition-colors duration-200"
+                    >
+                      Chat with us on WhatsApp
+                    </a>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -108,6 +120,30 @@ export default function ContactPage() {
                 <p className="font-sans font-light text-[14px] leading-[24px] text-[#909090] mt-3">
                   This is our registered address, not a returns address. Please
                   raise a return before sending anything back.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-sans font-medium text-[18px] leading-[27px] text-black mb-4">
+                  Formal grievances
+                </h2>
+                <p className="font-sans font-light text-[16px] leading-[26px] text-[#505050]">
+                  If support has not resolved your issue, escalate to our
+                  designated officer at{" "}
+                  <a
+                    href={`mailto:${contact.adminEmail}`}
+                    className="text-black underline underline-offset-4 hover:text-[#626262] transition-colors duration-200"
+                  >
+                    {contact.adminEmail}
+                  </a>
+                  . See the{" "}
+                  <Link
+                    href="/grievance-redressal"
+                    className="text-black underline underline-offset-4 hover:text-[#626262] transition-colors duration-200"
+                  >
+                    grievance redressal
+                  </Link>{" "}
+                  page for timelines.
                 </p>
               </div>
 

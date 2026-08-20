@@ -318,7 +318,7 @@ export function CartClient() {
 
           <div className="text-center">
             <Link
-              href="/legal/returns"
+              href="/refund-policy"
               className="font-sans font-normal text-[13px] text-[#626262] underline underline-offset-2 hover:text-black transition-colors duration-200"
             >
               View refund policy

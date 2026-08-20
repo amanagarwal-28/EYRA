@@ -1,31 +1,42 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { NewsletterForm } from "./NewsletterForm";
+import { TrustBar } from "./TrustBar";
 import { COLLECTIONS } from "@/config/collections";
+import { storeConfig } from "@/config/storeConfig";
+
+const { contact, company, seller } = storeConfig;
 
 // Built from the collections config so the footer can never link to a
-// collection that has no products behind it.
+// collection that does not exist.
 const SHOP_LINKS = [
-  { label: "All Collections", href: "/collections" },
+  ...COLLECTIONS.filter((c) =>
+    ["rings", "necklaces", "earrings", "bracelets"].includes(c.slug)
+  ).map((c) => ({ label: c.label, href: `/collections/${c.slug}` })),
   { label: "New Arrivals", href: "/new-arrivals" },
-  ...COLLECTIONS.map((c) => ({ label: c.label, href: `/collections/${c.slug}` })),
-] as const;
+  { label: "Best Sellers", href: "/best-sellers" },
+];
 
-const COMPANY_LINKS = [
-  { label: "About EYRA",     href: "/about"          },
-  { label: "Craftsmanship",  href: "/craftsmanship"  },
-  { label: "Sustainability", href: "/sustainability" },
-  { label: "Contact",        href: "/contact"        },
-  { label: "Support",        href: "/support"        },
-  { label: "Careers",        href: "/careers"        },
-] as const;
+const SUPPORT_LINKS = [
+  { label: "Track Your Order", href: "/orders" },
+  { label: "Shipping & Delivery Policy", href: "/shipping-policy" },
+  { label: "Returns, Exchanges & Refunds", href: "/refund-policy" },
+  { label: "Jewelry Care & Sizing Chart", href: "/authenticity-and-care" },
+  { label: "Contact Us", href: "/contact" },
+];
+
+const ABOUT_LINKS = [
+  { label: "Our Story & Craftsmanship", href: "/craftsmanship" },
+  { label: "925 Silver & Hallmarking", href: "/authenticity-and-care" },
+  { label: "Sustainability & Sourcing", href: "/sustainability" },
+  { label: "Press Inquiries", href: "/contact" },
+];
 
 const LEGAL_LINKS = [
-  { label: "Privacy Policy",  href: "/legal/privacy"  },
-  { label: "Terms of Use",    href: "/legal/terms"    },
-  { label: "Shipping Policy", href: "/legal/shipping" },
-  { label: "Returns",         href: "/legal/returns"  },
-] as const;
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Terms of Service", href: "/terms-of-service" },
+  { label: "Grievance Redressal", href: "/grievance-redressal" },
+];
 
 function NavColumn({
   heading,
@@ -41,7 +52,7 @@ function NavColumn({
       </h3>
       <ul className="flex flex-col gap-3.5">
         {links.map(({ label, href }) => (
-          <li key={href}>
+          <li key={label + href}>
             <Link
               href={href}
               className="text-[0.82rem] font-light text-stone hover:text-white transition-colors duration-200 tracking-[0.03em]"
@@ -58,20 +69,46 @@ function NavColumn({
 export function Footer() {
   return (
     <footer className="bg-charcoal text-pearl" aria-label="Site footer">
-      {/* ── Main body ───────────────────────────────────── */}
-      <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-16 lg:py-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr] gap-12 lg:gap-16">
+      {/* ── Navigation columns ──────────────────────────── */}
+      <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-16 lg:py-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-10">
+          <NavColumn heading="Shop" links={SHOP_LINKS} />
+          <NavColumn heading="Customer Care" links={SUPPORT_LINKS} />
+          <NavColumn heading="About EYRA" links={ABOUT_LINKS} />
 
-          {/* Brand + social + newsletter */}
-          <div className="flex flex-col gap-7">
-            <Logo variant="light" size="lg" />
+          {/* Stay connected */}
+          <div>
+            <h3 className="text-[0.68rem] font-sans font-normal tracking-[0.22em] uppercase text-white mb-6">
+              Stay Connected
+            </h3>
 
-            <p className="text-[0.82rem] font-light leading-relaxed text-stone max-w-[280px] tracking-[0.02em]">
-              Crafted from 925 sterling silver, for those who wear their identity.
+            <p className="text-[0.82rem] font-light leading-relaxed text-stone mb-4 tracking-[0.02em]">
+              Subscribe for exclusive drops and private sales.
             </p>
+            <NewsletterForm />
 
-            {/* Social links, lucide-react v1.16 omits brand icons; using SVG paths */}
-            <div className="flex items-center gap-5">
+            {/* Support shortcuts */}
+            <div className="mt-6 flex flex-col gap-2">
+              <a
+                href={`mailto:${contact.supportEmail}`}
+                className="text-[0.82rem] font-light text-stone hover:text-white transition-colors duration-200 tracking-[0.03em]"
+              >
+                {contact.supportEmail}
+              </a>
+              {contact.whatsapp && (
+                <a
+                  href={`https://wa.me/${contact.whatsapp}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[0.82rem] font-light text-stone hover:text-white transition-colors duration-200 tracking-[0.03em]"
+                >
+                  Chat on WhatsApp
+                </a>
+              )}
+            </div>
+
+            {/* Social links. lucide-react v1.16 omits brand icons; using SVG paths */}
+            <div className="flex items-center gap-5 mt-6">
               <a
                 href="https://instagram.com/eyrajewelry"
                 target="_blank"
@@ -86,14 +123,14 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://x.com/eyrajewelry"
+                href="https://www.linkedin.com/company/eyrajewelry"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="EYRA on X"
+                aria-label="EYRA on LinkedIn"
                 className="text-stone hover:text-white transition-colors duration-200"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  <path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.7h.05c.53-.95 1.83-1.95 3.77-1.95 4.03 0 4.78 2.5 4.78 5.75V21h-4v-5.6c0-1.34-.03-3.07-1.9-3.07-1.9 0-2.2 1.46-2.2 2.97V21H9z" />
                 </svg>
               </a>
               <a
@@ -108,36 +145,64 @@ export function Footer() {
                 </svg>
               </a>
             </div>
-
-            {/* Newsletter */}
-            <div>
-              <p className="text-[0.68rem] font-sans font-normal tracking-[0.2em] uppercase text-pearl mb-3">
-                Stay in the loop
-              </p>
-              <NewsletterForm />
-            </div>
-          </div>
-
-          {/* Shop links */}
-          <NavColumn heading="Shop" links={SHOP_LINKS} />
-
-          {/* Company + Legal stacked */}
-          <div className="flex flex-col gap-10">
-            <NavColumn heading="Company" links={COMPANY_LINKS} />
-            <NavColumn heading="Legal"   links={LEGAL_LINKS}   />
           </div>
         </div>
       </div>
 
-      {/* ── Bottom bar ──────────────────────────────────── */}
-      <div className="border-t border-stone/60">
-        <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-[0.72rem] font-light text-stone tracking-[0.05em]">
-            © {new Date().getFullYear()} EYRA. All rights reserved.
-          </p>
-          <p className="text-[0.72rem] font-light text-stone tracking-[0.05em]">
-            Handcrafted in India
-          </p>
+      {/* ── Trust and security badges ───────────────────── */}
+      <TrustBar />
+
+      {/* ── Legal and corporate compliance ──────────────── */}
+      <div className="border-t border-stone/40">
+        <div className="max-w-screen-xl mx-auto px-6 lg:px-10 py-8 flex flex-col gap-6">
+
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            {/* Brand + legal links */}
+            <div className="flex flex-col gap-4">
+              <Logo variant="light" size="md" />
+              <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                {LEGAL_LINKS.map(({ label, href }) => (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className="text-[0.74rem] font-light text-stone hover:text-white transition-colors duration-200 tracking-[0.03em]"
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Corporate registration details */}
+            <address className="not-italic text-[0.72rem] font-light leading-relaxed text-stone tracking-[0.02em] lg:text-right">
+              {seller.legalName}
+              <br />
+              Registered Office: {seller.addressLine1},{" "}
+              {seller.addressLine2 && <>{seller.addressLine2}, </>}
+              {seller.city}, {seller.state}, India {seller.pincode}
+              <br />
+              CIN: {company.cin}
+              {seller.gstin && <> | GSTIN: {seller.gstin}</>}
+              <br />
+              Email:{" "}
+              <a
+                href={`mailto:${contact.adminEmail}`}
+                className="hover:text-white transition-colors duration-200"
+              >
+                {contact.adminEmail}
+              </a>
+            </address>
+          </div>
+
+          <div className="border-t border-stone/30 pt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-[0.72rem] font-light text-stone tracking-[0.05em]">
+              © {new Date().getFullYear()} {seller.legalName}. All rights reserved.
+            </p>
+            <p className="text-[0.72rem] font-light text-stone tracking-[0.05em]">
+              Handcrafted in India
+            </p>
+          </div>
         </div>
       </div>
     </footer>

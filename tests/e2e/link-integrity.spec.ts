@@ -19,10 +19,13 @@ const ENTRY_POINTS = [
   "/support",
   "/cart",
   "/wishlist",
-  "/legal/privacy",
-  "/legal/terms",
-  "/legal/shipping",
-  "/legal/returns",
+  "/privacy-policy",
+  "/terms-of-service",
+  "/shipping-policy",
+  "/refund-policy",
+  "/grievance-redressal",
+  "/authenticity-and-care",
+  "/best-sellers",
 ];
 
 /** Routes that intentionally redirect guests to sign-in. */
@@ -70,8 +73,8 @@ test("every internal link found on entry pages resolves", async ({ page }) => {
 });
 
 test("collection aliases redirect to their canonical URL", async ({ page }) => {
-  await page.goto("/collections/necklaces");
-  await expect(page).toHaveURL(/\/collections\/chains$/);
+  await page.goto("/collections/chains");
+  await expect(page).toHaveURL(/\/collections\/necklaces$/);
 
   await page.goto("/collections/new");
   await expect(page).toHaveURL(/\/new-arrivals$/);
@@ -102,16 +105,16 @@ test.describe("HTTP status codes", () => {
   });
 
   test("real pages return 200", async ({ request }) => {
-    for (const path of ["/", "/collections", "/collections/rings", "/new-arrivals", "/about"]) {
+    for (const path of ["/", "/collections", "/collections/rings", "/collections/bracelets", "/new-arrivals", "/about"]) {
       const res = await request.get(path, { maxRedirects: 0 });
       expect(res.status(), `${path} should be 200`).toBe(200);
     }
   });
 
   test("collection aliases answer with a redirect status", async ({ request }) => {
-    const res = await request.get("/collections/necklaces", { maxRedirects: 0 });
+    const res = await request.get("/collections/chains", { maxRedirects: 0 });
     expect(res.status()).toBeGreaterThanOrEqual(300);
     expect(res.status()).toBeLessThan(400);
-    expect(res.headers()["location"]).toContain("/collections/chains");
+    expect(res.headers()["location"]).toContain("/collections/necklaces");
   });
 });

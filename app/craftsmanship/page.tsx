@@ -133,7 +133,7 @@ export default function CraftsmanshipPage() {
                   {storeConfig.policy.warrantyMonths} months from delivery. Read
                   the{" "}
                   <Link
-                    href="/legal/returns"
+                    href="/refund-policy"
                     className="text-black underline underline-offset-4 hover:text-[#626262] transition-colors duration-200"
                   >
                     returns and warranty terms

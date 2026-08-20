@@ -3,10 +3,10 @@ import Link from "next/link";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { COLLECTIONS as ALL_COLLECTIONS } from "@/config/collections";
 
-// The three product-type collections, taken from the shared config so the
-// homepage never advertises a category with no stock behind it.
+// The product-type collections, taken from the shared config so the homepage
+// and the footer always offer the same categories.
 const COLLECTIONS = ALL_COLLECTIONS.filter((c) =>
-  ["rings", "chains", "earrings"].includes(c.slug)
+  ["rings", "necklaces", "earrings", "bracelets"].includes(c.slug)
 ).map((c) => ({
   src: c.image,
   label: c.label,
@@ -41,7 +41,7 @@ export function CollectionsGrid() {
         </FadeIn>
 
         {/* 3-column grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {COLLECTIONS.map((col, i) => (
             <FadeIn key={col.label} delay={i * 80}>
               <Link href={col.href} className="group block relative overflow-hidden bg-pewter aspect-[3/4]">

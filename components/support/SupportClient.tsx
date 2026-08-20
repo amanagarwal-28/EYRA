@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { storeConfig } from "@/config/storeConfig";
 
 /* ── Types ────────────────────────────────────────────────── */
 interface FormFields {
@@ -20,19 +19,35 @@ interface FormErrors {
 
 type TouchedFields = Partial<Record<keyof FormFields, boolean>>;
 
+/**
+ * Support copy that quotes policy numbers. Passed in from the server page:
+ * only NEXT_PUBLIC_ env vars reach the browser, so reading storeConfig in a
+ * client component would show defaults even when an override is set.
+ */
+export interface SupportCopy {
+  returnDays: number;
+  exchangeDays: number;
+  deliveryDaysMin: number;
+  deliveryDaysMax: number;
+  freeShippingAbove: number;
+  warrantyMonths: number;
+  supportEmail: string;
+}
+
 /* ── FAQ data ─────────────────────────────────────────────── */
-const FAQ_ITEMS = [
+function buildFaqItems(c: SupportCopy) {
+  return [
   {
     q: "What materials are your jewellery made from?",
     a: "All EYRA pieces are crafted from 925 sterling silver, which is 92.5% pure silver alloyed with copper for durability. Select pieces feature 18K gold vermeil or rhodium plating for enhanced finish and longevity.",
   },
   {
     q: "How long does shipping take?",
-    a: `Each piece is made to order and crafted within 7 to 10 business days. Standard shipping takes a further ${storeConfig.policy.deliveryDaysMin} to ${storeConfig.policy.deliveryDaysMax} working days and is free on prepaid orders above ₹${storeConfig.policy.freeShippingAbove.toLocaleString("en-IN")}.`,
+    a: `Each piece is made to order and crafted within 7 to 10 business days. Standard shipping takes a further ${c.deliveryDaysMin} to ${c.deliveryDaysMax} working days and is free on prepaid orders above ₹${c.freeShippingAbove.toLocaleString("en-IN")}.`,
   },
   {
     q: "What is your return and exchange policy?",
-    a: `We accept returns within ${storeConfig.policy.returnDays} days of delivery, and exchanges within ${storeConfig.policy.exchangeDays} days, for unworn, undamaged items in original packaging. Customised or engraved pieces are non-returnable. Raise a return request via your account or email ${storeConfig.contact.supportEmail}.`,
+    a: `We accept returns within ${c.returnDays} days of delivery, and exchanges within ${c.exchangeDays} days, for unworn, undamaged items in original packaging. Customised or engraved pieces are non-returnable. Raise a return request via your account or email ${c.supportEmail}.`,
   },
   {
     q: "How do I care for my silver jewellery?",
@@ -40,13 +55,14 @@ const FAQ_ITEMS = [
   },
   {
     q: "Do you offer customisation or engraving?",
-    a: `Yes! Many of our pieces can be personalised with names, initials, or short messages. Look for the 'Customise' option on individual product pages, or email us at ${storeConfig.contact.supportEmail} with your request.`,
+    a: `Yes! Many of our pieces can be personalised with names, initials, or short messages. Look for the 'Customise' option on individual product pages, or email us at ${c.supportEmail} with your request.`,
   },
   {
     q: "Is there a warranty on EYRA products?",
-    a: "All EYRA products come with a 6-month warranty against manufacturing defects. This covers issues such as broken clasps, stone settings falling out, or plating defects under normal wear conditions.",
+    a: `All EYRA products come with a ${c.warrantyMonths}-month warranty against manufacturing defects. This covers issues such as broken clasps, stone settings falling out, or plating defects under normal wear conditions.`,
   },
-];
+  ];
+}
 
 /* ── Validation ───────────────────────────────────────────── */
 function validate(fields: FormFields): FormErrors {
@@ -154,7 +170,8 @@ function AccordionItem({
 }
 
 /* ── Main component ───────────────────────────────────────── */
-export function SupportClient() {
+export function SupportClient({ copy }: { copy: SupportCopy }) {
+  const FAQ_ITEMS = buildFaqItems(copy);
   /* Form state */
   const [fields, setFields] = useState<FormFields>({
     name: "",

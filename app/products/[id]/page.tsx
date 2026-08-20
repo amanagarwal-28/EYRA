@@ -6,6 +6,7 @@ import { ProductDetailClient } from "@/components/products/ProductDetailClient";
 import { CtaBanner } from "@/components/home/CtaBanner";
 import { NewsletterBanner } from "@/components/home/NewsletterBanner";
 import { getProducts, getProductByHandle, getSimilarProducts } from "@/lib/medusa";
+import { storeConfig } from "@/config/storeConfig";
 
 export async function generateStaticParams() {
   const products = await getProducts();
@@ -40,7 +41,13 @@ export default async function ProductDetailPage({
 
   return (
     <>
-      <ProductDetailClient product={product} />
+      <ProductDetailClient
+        product={product}
+        policy={{
+          returnDays: storeConfig.policy.returnDays,
+          exchangeDays: storeConfig.policy.exchangeDays,
+        }}
+      />
 
       {/* ── Similar products ─────────────────────── */}
       <section className="bg-white py-16">

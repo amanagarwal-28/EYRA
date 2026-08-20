@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import type { DetailProduct } from "@/lib/products";
 import { useCartStore, useWishlistStore } from "@/store/useStore";
+import { SIZE_CHART } from "@/lib/sizing";
 
 /* ── Inline SVG icons ────────────────────────────── */
 
@@ -87,29 +88,26 @@ function XIcon() {
   );
 }
 
-/* ── Size chart data ─────────────────────────────── */
-
-const SIZE_CHART = [
-  { size: 6,  circumference: 44.2, diameter: 14.1 },
-  { size: 7,  circumference: 45.5, diameter: 14.5 },
-  { size: 8,  circumference: 46.8, diameter: 14.9 },
-  { size: 9,  circumference: 48.0, diameter: 15.3 },
-  { size: 10, circumference: 49.3, diameter: 15.7 },
-  { size: 11, circumference: 50.6, diameter: 16.1 },
-  { size: 12, circumference: 51.9, diameter: 16.5 },
-  { size: 13, circumference: 53.1, diameter: 16.9 },
-  { size: 14, circumference: 54.4, diameter: 17.3 },
-  { size: 15, circumference: 55.7, diameter: 17.7 },
-  { size: 16, circumference: 57.0, diameter: 18.1 },
-  { size: 17, circumference: 58.3, diameter: 18.6 },
-  { size: 18, circumference: 59.5, diameter: 18.9 },
-  { size: 19, circumference: 60.8, diameter: 19.4 },
-  { size: 20, circumference: 62.1, diameter: 19.8 },
-];
-
 /* ── Main component ──────────────────────────────── */
 
-export function ProductDetailClient({ product }: { product: DetailProduct }) {
+/**
+ * Policy windows shown on the service badges. These are passed in from the
+ * server page rather than read from storeConfig here: only NEXT_PUBLIC_ env
+ * vars reach the browser, so a client component reading storeConfig directly
+ * would silently show the built-in defaults whenever an override is set.
+ */
+export interface ProductPolicy {
+  returnDays: number;
+  exchangeDays: number;
+}
+
+export function ProductDetailClient({
+  product,
+  policy,
+}: {
+  product: DetailProduct;
+  policy: ProductPolicy;
+}) {
   const [activeImage, setActiveImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
@@ -147,8 +145,8 @@ export function ProductDetailClient({ product }: { product: DetailProduct }) {
   }
 
   const serviceItems = [
-    { icon: <ReturnIcon />, label: "2 Days Return" },
-    { icon: <ExchangeIcon />, label: "10 Days Exchange" },
+    { icon: <ReturnIcon />, label: `${policy.returnDays} Days Return` },
+    { icon: <ExchangeIcon />, label: `${policy.exchangeDays} Days Exchange` },
     { icon: <CodIcon />, label: "Cash On Delivery" },
   ];
 

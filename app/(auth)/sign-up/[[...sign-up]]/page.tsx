@@ -139,7 +139,7 @@ export default function SignUpPage() {
 
         {/* Page footer */}
         <div className="flex justify-between font-sans font-normal text-[20px] leading-[30px] text-[#787878]">
-          <Link href="/legal/privacy" className="hover:text-black transition-colors duration-200">
+          <Link href="/privacy-policy" className="hover:text-black transition-colors duration-200">
             Privacy policy
           </Link>
           <span>Copyright 2026</span>

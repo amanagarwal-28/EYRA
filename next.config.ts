@@ -1,13 +1,28 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Policy pages briefly lived under /legal/* before the final URL scheme was
+  // settled. These keep any saved or shared link resolving.
+  async redirects() {
+    return [
+      { source: "/legal/privacy", destination: "/privacy-policy", permanent: true },
+      { source: "/legal/terms", destination: "/terms-of-service", permanent: true },
+      { source: "/legal/shipping", destination: "/shipping-policy", permanent: true },
+      { source: "/legal/returns", destination: "/refund-policy", permanent: true },
+      // The returns policy tells customers to visit /returns to start a return.
+      { source: "/returns", destination: "/refund-policy", permanent: false },
+      { source: "/terms", destination: "/terms-of-service", permanent: true },
+      { source: "/privacy", destination: "/privacy-policy", permanent: true },
+    ];
+  },
+
   images: {
     remotePatterns: [
       // ── EYRA's own domain ─────────────────────────────────────
       // Seed product data references images by absolute URL
       // (https://www.eyra.org.in/images/...) rather than a relative path.
       // Vercel happens to auto-permit a deployment's own domain for
-      // next/image, which is why this was never caught in production — but
+      // next/image, which is why this was never caught in production, but
       // that's an implicit, provider-specific allowance, not something to
       // rely on. Without this entry, `next dev` (which doesn't know its
       // "own domain") throws on every single product image and crashes to

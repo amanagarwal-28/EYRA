@@ -11,6 +11,7 @@
  *   SHIP_WEIGHT_RING_G        Ring weight in grams (default: 6)
  *   SHIP_WEIGHT_EARRING_G     Earring weight in grams (default: 6)
  *   SHIP_WEIGHT_CHAIN_G       Chain/necklace weight in grams (default: 15)
+ *   SHIP_WEIGHT_BRACELET_G    Bracelet weight in grams (default: 12)
  *   SHIP_DEFAULT_WEIGHT_G     Fallback per-item weight in grams (default: 10)
  *   SHIP_MIN_WEIGHT_KG        Shiprocket minimum chargeable slab in kg (default: 0.5)
  *   SHIP_BOX_LENGTH_CM        Jewellery box length in cm (default: 10)
@@ -54,6 +55,7 @@ export const storeConfig = {
       ring: envFloat("SHIP_WEIGHT_RING_G", 6),
       earring: envFloat("SHIP_WEIGHT_EARRING_G", 6),
       chain: envFloat("SHIP_WEIGHT_CHAIN_G", 15),
+      bracelet: envFloat("SHIP_WEIGHT_BRACELET_G", 12),
     } as Record<string, number>,
     /** Standard jewellery box dimensions (cm) sent to Shiprocket. */
     box: {
@@ -88,24 +90,63 @@ export const storeConfig = {
    */
   contact: {
     supportEmail: envString("SUPPORT_PUBLIC_EMAIL", "support@eyra.org.in"),
+    /** Statutory / corporate mailbox used for legal and data requests. */
+    adminEmail: envString("ADMIN_PUBLIC_EMAIL", "admin@eyra.org.in"),
     pressEmail: envString("PRESS_PUBLIC_EMAIL", "press@eyra.org.in"),
     careersEmail: envString("CAREERS_PUBLIC_EMAIL", "careers@eyra.org.in"),
+    /**
+     * WhatsApp support number in international format without symbols, e.g.
+     * "919876543210". The footer and contact page only render a WhatsApp link
+     * when this is set, so an unconfigured number never becomes a dead link.
+     */
+    whatsapp: envString("SUPPORT_WHATSAPP_NUMBER", ""),
     /** Support hours shown on the contact page. */
     hours: "Monday to Saturday, 10am to 7pm IST",
   },
 
   /**
+   * Corporate identity required on the footer and legal pages under the
+   * Companies Act and the Consumer Protection (E-Commerce) Rules, 2020.
+   */
+  company: {
+    cin: envString("COMPANY_CIN", "U32111JH2026PTC028056"),
+    grievanceOfficer: envString("GRIEVANCE_OFFICER_NAME", "Aman Agarwal"),
+    grievanceOfficerTitle: "Grievance and Nodal Officer",
+  },
+
+  /**
    * Customer-facing policy windows. The product page badges, the support FAQ,
-   * and the returns policy all read from here so they cannot drift apart.
+   * and every policy page read from here so they cannot drift apart.
    */
   policy: {
-    returnDays: envFloat("POLICY_RETURN_DAYS", 2),
-    exchangeDays: envFloat("POLICY_EXCHANGE_DAYS", 10),
-    /** Working days before a domestic order is typically delivered. */
-    deliveryDaysMin: envFloat("POLICY_DELIVERY_DAYS_MIN", 3),
-    deliveryDaysMax: envFloat("POLICY_DELIVERY_DAYS_MAX", 7),
-    /** Order value (INR) above which shipping is free. */
-    freeShippingAbove: envFloat("POLICY_FREE_SHIPPING_ABOVE", 999),
+    /** Return window, in days from delivery. */
+    returnDays: envFloat("POLICY_RETURN_DAYS", 15),
+    /** Exchange window, in days from delivery. */
+    exchangeDays: envFloat("POLICY_EXCHANGE_DAYS", 15),
+    /** Hours to pack and hand an in-stock order to the courier. */
+    dispatchHoursMin: envFloat("POLICY_DISPATCH_HOURS_MIN", 24),
+    dispatchHoursMax: envFloat("POLICY_DISPATCH_HOURS_MAX", 48),
+    /** Extra working days needed for personalised or engraved pieces. */
+    customExtraDaysMin: envFloat("POLICY_CUSTOM_DAYS_MIN", 3),
+    customExtraDaysMax: envFloat("POLICY_CUSTOM_DAYS_MAX", 5),
+    /** Delivery time in business days for metro addresses. */
+    metroDaysMin: envFloat("POLICY_METRO_DAYS_MIN", 2),
+    metroDaysMax: envFloat("POLICY_METRO_DAYS_MAX", 4),
+    /** Delivery time in business days for the rest of India. */
+    indiaDaysMin: envFloat("POLICY_INDIA_DAYS_MIN", 4),
+    indiaDaysMax: envFloat("POLICY_INDIA_DAYS_MAX", 7),
+    /** Order value (INR) above which prepaid shipping is free. */
+    freeShippingAbove: envFloat("POLICY_FREE_SHIPPING_ABOVE", 499),
+    /** Business days for a refund to reach the original payment source. */
+    refundDaysMin: envFloat("POLICY_REFUND_DAYS_MIN", 5),
+    refundDaysMax: envFloat("POLICY_REFUND_DAYS_MAX", 7),
+    /** Hours within which transit damage or a tampered parcel must be reported. */
+    damageClaimHours: envFloat("POLICY_DAMAGE_CLAIM_HOURS", 48),
+    /** Return postage (INR) reimbursed when a pincode is not reverse-serviceable. */
+    selfShipReimbursement: envFloat("POLICY_SELF_SHIP_REIMBURSEMENT", 70),
+    /** Grievance acknowledgement and resolution SLA. */
+    grievanceAckHours: envFloat("POLICY_GRIEVANCE_ACK_HOURS", 48),
+    grievanceResolutionDays: envFloat("POLICY_GRIEVANCE_RESOLUTION_DAYS", 30),
     /** Warranty on manufacturing defects, in months. */
     warrantyMonths: envFloat("POLICY_WARRANTY_MONTHS", 6),
   },
