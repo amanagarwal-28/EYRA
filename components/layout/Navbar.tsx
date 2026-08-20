@@ -60,26 +60,32 @@ export function Navbar() {
 
   const closeMenu = () => setMenuOpen(false);
 
+  // The header is fixed over the page's own content, and at the top of the
+  // homepage that content is the white announcement strip and heading, not a
+  // dark hero image. A transparent header with light/pearl text there was
+  // reading as near-invisible white-on-white. Only once `scrolled` swaps in
+  // the solid charcoal backdrop did the light text become legible, so "dark
+  // theme" now tracks the backdrop that is actually dark, not just "home page".
+  const darkTheme = isHome && scrolled;
+
   return (
     <>
       {/* ── Fixed top bar ─────────────────────────────── */}
       <header
         className={[
           "fixed top-0 inset-x-0 z-50 transition-all duration-300",
-          isHome
-            ? scrolled
-              ? "bg-charcoal/95 backdrop-blur-md border-b border-white/10"
-              : "bg-transparent"
-            : "bg-white border-b border-[#CFCFCF]",
+          darkTheme
+            ? "bg-charcoal/95 backdrop-blur-md border-b border-white/10"
+            : "bg-white/90 backdrop-blur-md border-b border-[#CFCFCF]",
         ].join(" ")}
         style={{ height: "var(--nav-height)" }}
       >
         <div className={[
           "max-w-screen-xl mx-auto px-6 lg:px-10 h-full flex items-center justify-between",
-          isHome ? "text-white" : "text-black",
+          darkTheme ? "text-white" : "text-black",
         ].join(" ")}>
           {/* Logo */}
-          <Logo variant={isHome ? "light" : "dark"} size="md" />
+          <Logo variant={darkTheme ? "light" : "dark"} size="md" />
 
           {/* Desktop nav */}
           <nav
@@ -91,10 +97,10 @@ export function Navbar() {
                 key={href}
                 href={href}
                 className={[
-                  "text-[0.7rem] font-sans font-normal tracking-[0.18em] uppercase transition-colors duration-200",
-                  isHome
+                  "text-[0.72rem] font-sans font-medium tracking-[0.16em] uppercase transition-colors duration-200",
+                  darkTheme
                     ? "text-pearl hover:text-white"
-                    : "text-[#626262] hover:text-black",
+                    : "text-[#3D3D3D] hover:text-black",
                 ].join(" ")}
               >
                 {label}
@@ -104,39 +110,13 @@ export function Navbar() {
 
           {/* Action icons */}
           <div className="flex items-center gap-0.5">
-            {/* Explicit auth entry point on desktop, shown to guests only. */}
-            {isLoaded && !isSignedIn && (
-              <div className="hidden lg:flex items-center gap-3 mr-3">
-                <Link
-                  href="/sign-in"
-                  className={[
-                    "text-[0.7rem] font-sans font-normal tracking-[0.18em] uppercase transition-colors duration-200",
-                    isHome ? "text-pearl hover:text-white" : "text-[#626262] hover:text-black",
-                  ].join(" ")}
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className={[
-                    "text-[0.7rem] font-sans font-normal tracking-[0.18em] uppercase px-4 py-2 rounded-full border transition-colors duration-200",
-                    isHome
-                      ? "border-white/50 text-white hover:bg-white hover:text-black"
-                      : "border-[#CFCFCF] text-black hover:bg-black hover:text-white hover:border-black",
-                  ].join(" ")}
-                >
-                  Sign up
-                </Link>
-              </div>
-            )}
-
             <button
               aria-label={searchOpen ? "Close search" : "Search"}
               aria-expanded={searchOpen}
               onClick={() => setSearchOpen((prev) => !prev)}
               className={[
                 "p-2.5 transition-colors duration-200",
-                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+                darkTheme ? "text-pearl hover:text-white" : "text-[#333] hover:text-black",
               ].join(" ")}
             >
               {searchOpen
@@ -144,13 +124,15 @@ export function Navbar() {
                 : <Search size={17} strokeWidth={1.5} />
               }
             </button>
-            {/* Account: signed-in users go to their profile, guests to sign-in. */}
+            {/* Account: signed-in users go to their profile, guests to sign-in.
+                This is deliberately the sole account entry point in the header,
+                no separate text "Sign in" / "Sign up" links. */}
             <Link
               href={isSignedIn ? "/account" : "/sign-in"}
               aria-label={isSignedIn ? "Your account" : "Sign in"}
               className={[
                 "p-2.5 transition-colors duration-200 block",
-                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+                darkTheme ? "text-pearl hover:text-white" : "text-[#333] hover:text-black",
               ].join(" ")}
             >
               <User size={17} strokeWidth={1.5} />
@@ -160,14 +142,14 @@ export function Navbar() {
               aria-label="Wishlist"
               className={[
                 "relative p-2.5 transition-colors duration-200",
-                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+                darkTheme ? "text-pearl hover:text-white" : "text-[#333] hover:text-black",
               ].join(" ")}
             >
               <Heart size={17} strokeWidth={1.5} />
               {wishlistCount > 0 && (
                 <span className={[
                   "absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-sans font-medium leading-none",
-                  isHome ? "bg-white text-black" : "bg-black text-white",
+                  darkTheme ? "bg-white text-black" : "bg-black text-white",
                 ].join(" ")}>
                   {wishlistCount > 99 ? "99+" : wishlistCount}
                 </span>
@@ -178,14 +160,14 @@ export function Navbar() {
               aria-label="Cart"
               className={[
                 "relative p-2.5 transition-colors duration-200",
-                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+                darkTheme ? "text-pearl hover:text-white" : "text-[#333] hover:text-black",
               ].join(" ")}
             >
               <ShoppingBag size={17} strokeWidth={1.5} />
               {cartCount > 0 && (
                 <span className={[
                   "absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-sans font-medium leading-none",
-                  isHome ? "bg-white text-black" : "bg-black text-white",
+                  darkTheme ? "bg-white text-black" : "bg-black text-white",
                 ].join(" ")}>
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
@@ -199,7 +181,7 @@ export function Navbar() {
               aria-controls="mobile-nav"
               className={[
                 "p-2.5 transition-colors duration-200 lg:hidden",
-                isHome ? "text-pearl hover:text-white" : "text-[#444] hover:text-black",
+                darkTheme ? "text-pearl hover:text-white" : "text-[#333] hover:text-black",
               ].join(" ")}
               onClick={() => setMenuOpen((prev) => !prev)}
             >
@@ -280,23 +262,26 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* Account actions */}
-        {isLoaded && (
+        {/* Account actions. Signed-out guests use the person icon in the
+            header above, visible behind this drawer, rather than a duplicate
+            set of buttons here. Signed-in shortcuts stay since "My orders"
+            isn't otherwise reachable from the header icons. */}
+        {isLoaded && isSignedIn && (
           <div className="px-8">
             <div className="flex flex-col gap-4">
               <Link
-                href={isSignedIn ? "/account" : "/sign-in"}
+                href="/account"
                 onClick={closeMenu}
                 className="w-full text-center px-8 py-3.5 rounded-full bg-white text-black font-sans font-normal text-[0.72rem] tracking-[0.2em] uppercase hover:bg-pearl transition-colors duration-200"
               >
-                {isSignedIn ? "My account" : "Sign in"}
+                My account
               </Link>
               <Link
-                href={isSignedIn ? "/orders" : "/sign-up"}
+                href="/orders"
                 onClick={closeMenu}
                 className="w-full text-center px-8 py-3.5 rounded-full border border-white/50 text-white font-sans font-normal text-[0.72rem] tracking-[0.2em] uppercase hover:border-white transition-colors duration-200"
               >
-                {isSignedIn ? "My orders" : "Create account"}
+                My orders
               </Link>
             </div>
           </div>

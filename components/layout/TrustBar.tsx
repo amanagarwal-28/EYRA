@@ -66,10 +66,10 @@ export function TrustBar() {
             <div key={badge.title} className="flex items-start gap-3">
               <span className="text-pearl shrink-0 mt-0.5">{badge.icon}</span>
               <div>
-                <p className="font-sans font-normal text-[0.78rem] text-white leading-snug">
+                <p className="font-sans font-medium text-[0.82rem] text-white leading-snug">
                   {badge.title}
                 </p>
-                <p className="font-sans font-light text-[0.74rem] text-stone leading-snug mt-0.5">
+                <p className="font-sans font-normal text-[0.78rem] text-pearl leading-snug mt-0.5">
                   {badge.detail}
                 </p>
               </div>
@@ -78,14 +78,14 @@ export function TrustBar() {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <p className="font-sans font-normal text-[0.66rem] tracking-[0.2em] uppercase text-stone shrink-0">
+          <p className="font-sans font-semibold text-[0.68rem] tracking-[0.18em] uppercase text-pearl shrink-0">
             We accept
           </p>
           <ul className="flex flex-wrap items-center gap-2">
             {PAYMENT_METHODS.map((method) => (
               <li
                 key={method}
-                className="font-sans font-normal text-[0.72rem] text-pearl border border-stone/50 rounded px-2.5 py-1 leading-none"
+                className="font-sans font-medium text-[0.76rem] text-white border border-pearl/50 rounded px-2.5 py-1 leading-none"
               >
                 {method}
               </li>
