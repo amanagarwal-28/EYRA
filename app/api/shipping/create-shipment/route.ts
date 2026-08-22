@@ -3,7 +3,7 @@ import { storeConfig } from "@/config/storeConfig";
 import { rememberOrderForShipment } from "@/lib/shiprocket-store";
 import { splitName } from "@/lib/medusa-order";
 import { applyRateLimit } from "@/lib/rateLimit";
-import { sendOpsAlert } from "@/lib/ops-alert";
+import { sendOpsAlert, sendOrderPlacedNotification } from "@/lib/ops-alert";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 const MEDUSA_BASE = (
@@ -455,6 +455,26 @@ export async function POST(request: NextRequest) {
         "The shipment and label exist in Shiprocket, but the order in Medusa doesn't show it. Update the order metadata manually.",
       ]);
     }
+  }
+
+  // A new order needs to be packed and shipped regardless of whether the
+  // steps above all succeeded, this is the only notification that a human
+  // gets that an order exists at all; without it the only way to notice one
+  // was to open Medusa admin. Sent whenever the Shiprocket order itself was
+  // created, even if AWB/label failed and there's nothing to download yet,
+  // since sendOpsAlert above already explains why in that case.
+  if (shipmentId) {
+    await sendOrderPlacedNotification({
+      eyraOrderRef,
+      medusaOrderId,
+      paymentMethod,
+      subtotal,
+      items: items.map((i) => ({ name: i.name, sku: i.sku, quantity: i.quantity })),
+      shipping,
+      awbCode,
+      courierName,
+      labelUrl,
+    });
   }
 
   const result: CreateShipmentResult = {
