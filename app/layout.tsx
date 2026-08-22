@@ -4,6 +4,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { CartSyncBanner } from "@/components/layout/CartSyncBanner";
 import { syncMedusaCustomer } from "@/lib/medusa-customer";
 
 /* Poppins, UI / body font (replaces Inter; matches Figma Poppins usage) */
@@ -54,7 +57,13 @@ export default async function RootLayout({
         className={`${poppins.variable} ${cormorant.variable}`}
       >
         <body className="bg-ivory text-carbon font-sans min-h-screen flex flex-col antialiased">
-          <AppShell>{children}</AppShell>
+          <AppShell
+            navbar={<Navbar />}
+            footer={<Footer />}
+            cartSyncBanner={<CartSyncBanner />}
+          >
+            {children}
+          </AppShell>
         </body>
       </html>
     </ClerkProvider>

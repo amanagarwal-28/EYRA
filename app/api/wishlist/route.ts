@@ -32,7 +32,10 @@ export async function GET() {
     entries.map(async (entry): Promise<HydratedWishlistItem | null> => {
       const product = await getProductByHandle(entry.productId);
       if (!product) return null;
-      return { product, variantId: entry.variantId ?? product.variantId };
+      // Keep entry.variantId exactly as stored. Falling back to
+      // product.variantId here used to silently turn a ring wishlisted
+      // without a chosen size into one with an arbitrary size attached.
+      return { product, variantId: entry.variantId };
     })
   );
   const items = hydrated.filter((item): item is HydratedWishlistItem => item !== null);

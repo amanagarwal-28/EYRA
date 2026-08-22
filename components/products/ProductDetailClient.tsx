@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { DetailProduct } from "@/lib/products";
 import { useCartStore, useWishlistStore } from "@/store/useStore";
 import { SIZE_CHART } from "@/lib/sizing";
@@ -108,8 +109,10 @@ export function ProductDetailClient({
   product: DetailProduct;
   policy: ProductPolicy;
 }) {
+  const router = useRouter();
   const [activeImage, setActiveImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
+  const [sizeRequiredError, setSizeRequiredError] = useState(false);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const [pincode, setPincode] = useState("");
   const [pincodeResult, setPincodeResult] = useState("");
@@ -122,6 +125,24 @@ export function ProductDetailClient({
   const inCart = cartItems.some(
     (i) => i.product.id === product.id && i.size === (product.type === "ring" ? selectedSize : null)
   );
+
+  /**
+   * Resolves which variant an add-to-cart/buy-now action should use.
+   *
+   * Rings previously fell back to product.variantId (the "cheapest" variant,
+   * arbitrary among same-priced sizes) whenever no size was selected, so a
+   * customer who never picked a size would silently get whatever size Medusa
+   * happened to list first. Returns null and flags the size picker instead of
+   * guessing.
+   */
+  function resolveVariantId(): string | undefined | null {
+    if (product.type !== "ring") return product.variantId;
+    if (!selectedSize) {
+      setSizeRequiredError(true);
+      return null;
+    }
+    return product.sizeVariantMap?.[String(selectedSize)] ?? product.variantId;
+  }
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
@@ -180,9 +201,15 @@ export function ProductDetailClient({
                     <button
                       aria-label={wishlist ? "Remove from wishlist" : "Add to wishlist"}
                       onClick={() => {
+                        // Unlike add-to-cart, wishlisting a ring without a
+                        // size picked is fine, WishlistClient shows a "pick a
+                        // size" prompt for that case. What it must not do is
+                        // silently store an arbitrary size as if chosen.
                         const variantId =
-                          product.type === "ring" && selectedSize
-                            ? (product.sizeVariantMap?.[String(selectedSize)] ?? product.variantId)
+                          product.type === "ring"
+                            ? selectedSize
+                              ? product.sizeVariantMap?.[String(selectedSize)]
+                              : undefined
                             : product.variantId;
                         toggleWishlist(product, variantId);
                       }}
@@ -329,23 +356,41 @@ export function ProductDetailClient({
                     {product.sizes.map((size) => (
                       <button
                         key={size}
-                        onClick={() => setSelectedSize(size === selectedSize ? null : size)}
+                        onClick={() => {
+                          setSelectedSize(size === selectedSize ? null : size);
+                          setSizeRequiredError(false);
+                        }}
                         className={`w-10 h-10 border font-sans font-normal text-[14px] rounded transition-colors duration-150 ${
                           selectedSize === size
                             ? "bg-black text-white border-black"
-                            : "bg-white border-[#CFCFCF] text-[#626262] hover:border-black hover:text-black"
+                            : sizeRequiredError
+                              ? "bg-white border-[#D93025] text-[#626262] hover:border-black hover:text-black"
+                              : "bg-white border-[#CFCFCF] text-[#626262] hover:border-black hover:text-black"
                         }`}
                       >
                         {size}
                       </button>
                     ))}
                   </div>
+                  {sizeRequiredError && (
+                    <p role="alert" className="font-sans font-normal text-[13px] text-[#D93025]">
+                      Please select a size before you continue.
+                    </p>
+                  )}
                 </div>
               )}
 
               {/* CTA buttons */}
               <div className="flex gap-3">
                 <button
+                  onClick={() => {
+                    const variantId = resolveVariantId();
+                    if (variantId === null) return; // ring with no size picked
+                    if (!inCart) {
+                      addToCart(product, product.type === "ring" ? selectedSize : null, variantId);
+                    }
+                    router.push("/checkout");
+                  }}
                   className="flex-1 flex items-center justify-center px-8 py-[14px] bg-black text-white font-sans font-medium text-[18px] leading-[20px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200"
                   style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
                 >
@@ -353,13 +398,10 @@ export function ProductDetailClient({
                 </button>
                 <button
                   onClick={() => {
-                    if (!inCart) {
-                      const variantId =
-                        product.type === "ring" && selectedSize
-                          ? product.sizeVariantMap?.[String(selectedSize)] ?? product.variantId
-                          : product.variantId;
-                      addToCart(product, product.type === "ring" ? selectedSize : null, variantId);
-                    }
+                    if (inCart) return;
+                    const variantId = resolveVariantId();
+                    if (variantId === null) return; // ring with no size picked
+                    addToCart(product, product.type === "ring" ? selectedSize : null, variantId);
                   }}
                   className={`flex-1 flex items-center justify-center px-8 py-[14px] font-sans font-medium text-[18px] leading-[20px] rounded-full border transition-colors duration-200 ${
                     inCart

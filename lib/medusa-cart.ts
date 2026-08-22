@@ -85,10 +85,26 @@ export function clearStoredCartId(): void {
 
 /* ── Base fetch ───────────────────────────────────────────── */
 
+/**
+ * Thrown when Medusa actually responded and rejected the request, e.g.
+ * insufficient_inventory. Distinct from a request that never got a response
+ * at all (network drop, or the page navigating away mid-flight aborts the
+ * fetch), which cartFetch instead resolves to null for. The distinction lets
+ * callers roll back optimistic UI state only when they have a definitive
+ * "no" from the server, rather than on any inconclusive failure to hear back.
+ */
+export class CartRequestRejected extends Error {
+  constructor(public status: number, url: string) {
+    super(`Medusa rejected ${url} with ${status}`);
+    this.name = "CartRequestRejected";
+  }
+}
+
 async function cartFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   const url = `${BASE_URL}${path}`;
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       ...init,
       headers: {
         "Content-Type": "application/json",
@@ -96,15 +112,18 @@ async function cartFetch<T>(path: string, init?: RequestInit): Promise<T | null>
         ...(init?.headers ?? {}),
       },
     });
-    if (!res.ok) {
-      console.error(`[medusa-cart] ${res.status} ${res.statusText}, ${url}`);
-      return null;
-    }
-    return (await res.json()) as T;
   } catch (err) {
+    // The request never completed, could be offline, CORS, or the browser
+    // aborting it because the page is navigating away. We can't tell which,
+    // so this resolves to null (inconclusive) rather than throwing.
     console.error("[medusa-cart] fetch error:", err);
     return null;
   }
+  if (!res.ok) {
+    console.error(`[medusa-cart] ${res.status} ${res.statusText}, ${url}`);
+    throw new CartRequestRejected(res.status, url);
+  }
+  return (await res.json()) as T;
 }
 
 /* ── Normalizers ──────────────────────────────────────────── */

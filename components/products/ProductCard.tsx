@@ -2,13 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Product } from "./types";
 import { useCartStore } from "@/store/useStore";
 
 export function ProductCard({ product }: { product: Product }) {
+  const router = useRouter();
   const addToCart = useCartStore((s) => s.addToCart);
+  // Rings have one variant per size (checked live: every ring in the
+  // catalogue has 15 size variants, every chain/earring has exactly 1), so
+  // "in cart" can't just mean "any variant of this product" for rings, or
+  // adding a different size would read as a no-op. Non-ring products are
+  // single-variant, so the broader check is accurate for them.
   const inCart = useCartStore((s) =>
-    s.items.some((i) => i.product.id === product.id)
+    product.type === "ring"
+      ? false
+      : s.items.some((i) => i.product.id === product.id)
   );
   return (
     <article className="group flex flex-col items-center gap-[15px] py-8 px-6 h-full bg-white hover:bg-[#F7F7F7] transition-colors duration-200">
@@ -70,6 +79,13 @@ export function ProductCard({ product }: { product: Product }) {
         <button
           onClick={(e) => {
             e.preventDefault();
+            if (product.type === "ring") {
+              // Rings need a size, and this card has no size picker. Sending
+              // customers to the PDP to choose one beats silently adding
+              // whichever size Medusa happens to list first.
+              router.push(`/products/${product.id}`);
+              return;
+            }
             if (!inCart) addToCart(product, null, product.variantId);
           }}
           className={`w-full max-w-[310px] flex items-center justify-center px-8 py-[14px] font-sans font-medium text-[18px] leading-[20px] rounded-full transition-colors duration-200 ${inCart
@@ -78,7 +94,7 @@ export function ProductCard({ product }: { product: Product }) {
             }`}
           style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
         >
-          {inCart ? "Added to cart" : "Add to cart"}
+          {product.type === "ring" ? "Select size" : inCart ? "Added to cart" : "Add to cart"}
         </button>
       </div>
     </article>

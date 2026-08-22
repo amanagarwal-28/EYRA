@@ -56,6 +56,9 @@ export const useCartStore = create<CartStore>()(
 
   addToCart(product, size = null, variantId) {
     const key = itemKey(product.id, size);
+    // Captured before the optimistic mutation so a failed sync can undo
+    // exactly what this call did, rather than wiping the whole line.
+    const existedBefore = get().items.some((i) => itemKey(i.product.id, i.size) === key);
 
     // Optimistic update
     set((state) => {
@@ -82,21 +85,55 @@ export const useCartStore = create<CartStore>()(
       return;
     }
 
-    (async () => {
-      try {
-        const { createCart, setStoredCartId, addCartLineItem } = await import("@/lib/medusa-cart");
+    // If the server explicitly rejected this item (e.g. insufficient
+    // inventory), undo the optimistic add/increment so "Added to cart" can't
+    // linger over an item that was actually refused. Only called for a
+    // definitive rejection, not for a request that never got a response, see
+    // the CartRequestRejected comment below for why that distinction matters.
+    function rollback() {
+      set((state) => ({
+        items: existedBefore
+          ? state.items
+              .map((i) =>
+                itemKey(i.product.id, i.size) === key
+                  ? { ...i, quantity: i.quantity - 1 }
+                  : i
+              )
+              .filter((i) => i.quantity > 0)
+          : state.items.filter((i) => itemKey(i.product.id, i.size) !== key),
+      }));
+    }
 
+    (async () => {
+      // Imported outside the try block so CartRequestRejected stays in scope
+      // for the catch clause below, which needs to check `instanceof` it.
+      const { createCart, setStoredCartId, addCartLineItem, CartRequestRejected } =
+        await import("@/lib/medusa-cart");
+
+      try {
         // Prefer the cartId already in the store (rehydrated by persist middleware).
         // Only create a new cart when there genuinely isn't one.
         let cartId = get().cartId;
         if (!cartId) {
           cartId = await createCart();
-          if (!cartId) { set({ syncStatus: "error" }); return; }
+          if (!cartId) {
+            // createCart returning null (rather than throwing) means the
+            // request never got a response at all, offline, or the page is
+            // mid-navigation, not that the server refused it. There's
+            // nothing item-specific to undo here either way.
+            set({ syncStatus: "error", syncError: "Could not add item to cart. Please try again." });
+            return;
+          }
           setStoredCartId(cartId); // keep eyra_cart_id in sync as a fallback
         }
 
         const result = await addCartLineItem(cartId, variantId, 1);
         if (!result) {
+          // Same as above: the request never completed, so we genuinely
+          // don't know whether Medusa has this item or not. Rolling back
+          // here would wrongly discard a real add that just hadn't finished
+          // yet, e.g. because the user navigated away right after clicking,
+          // which is exactly what CartRequestRejected below exists to avoid.
           set({ syncStatus: "error", syncError: "Could not add item to cart. Please try again." });
           return;
         }
@@ -114,7 +151,17 @@ export const useCartStore = create<CartStore>()(
         }));
       } catch (err) {
         console.error("[cart] addToCart sync failed:", err);
-        set({ syncStatus: "error", syncError: "Cart sync failed. Your item is saved locally." });
+        // Only a definitive server rejection (Medusa actually responded "no",
+        // e.g. insufficient_inventory) justifies discarding what the user
+        // already saw as "Added to cart". Any other thrown error here is
+        // inconclusive, an aborted request, a dropped connection, and
+        // shouldn't erase state the customer already saw confirmed.
+        if (err instanceof CartRequestRejected) {
+          rollback();
+          set({ syncStatus: "error", syncError: "This item is no longer available in that size." });
+        } else {
+          set({ syncStatus: "error", syncError: "Cart sync failed. Please try again." });
+        }
       }
     })();
   },
@@ -290,9 +337,13 @@ export const useWishlistStore = create<WishlistStore>()(
       toggle(product, variantId) {
         set((state) => {
           const exists = state.items.some((i) => i.product.id === product.id);
+          // Store variantId exactly as the caller resolved it. Falling back
+          // to product.variantId here used to silently overwrite an
+          // intentional "no size chosen yet" (undefined) with an arbitrary
+          // variant, defeating the caller's own size-required check.
           const items = exists
             ? state.items.filter((i) => i.product.id !== product.id)
-            : [...state.items, { product, variantId: variantId ?? product.variantId }];
+            : [...state.items, { product, variantId }];
           syncWishlist(items);
           return { items };
         });

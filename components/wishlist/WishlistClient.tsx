@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useWishlistStore, useCartStore } from "@/store/useStore";
 import type { WishlistItem } from "@/store/useStore";
 
@@ -17,12 +18,21 @@ function TrashIcon() {
 }
 
 export function WishlistClient() {
+  const router = useRouter();
   const items = useWishlistStore((s) => s.items);
   const removeFromWishlist = useWishlistStore((s) => s.remove);
   const addToCart = useCartStore((s) => s.addToCart);
   const cartItems = useCartStore((s) => s.items);
 
   function moveToCart(item: WishlistItem) {
+    if (!item.variantId) {
+      // Wishlisted without a size chosen. Sending them to the PDP beats
+      // silently adding a cart item with no variant, which used to add
+      // locally with no server sync, since addToCart no-ops the Medusa
+      // sync whenever variantId is missing.
+      router.push(`/products/${item.product.id}`);
+      return;
+    }
     addToCart(item.product, null, item.variantId);
     removeFromWishlist(item.product.id);
   }
@@ -120,7 +130,7 @@ export function WishlistClient() {
                   className="flex-1 max-w-[310px] flex items-center justify-center px-8 py-[14px] bg-black text-white font-sans font-medium text-[16px] leading-[20px] rounded-full hover:bg-[#1a1a1a] disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
                   style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
                 >
-                  {inCart ? "In cart" : "Move to cart"}
+                  {inCart ? "In cart" : variantId ? "Move to cart" : "Select size"}
                 </button>
                 <button
                   aria-label="Remove from wishlist"

@@ -2,12 +2,35 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Navbar } from "./Navbar";
-import { Footer } from "./Footer";
-import { CartSyncBanner } from "./CartSyncBanner";
 import { useCartStore, useWishlistStore } from "@/store/useStore";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+/**
+ * Navbar and CartSyncBanner are themselves "use client" components, so
+ * importing and instantiating them here would be fine either way. Footer
+ * is not: it reads server-only env vars (storeConfig.seller.gstin, no
+ * NEXT_PUBLIC_ prefix) directly. A Client Component that imports and renders
+ * a Server Component module directly pulls it into the client bundle, so it
+ * silently re-executes in the browser too, where that env var is undefined,
+ * causing a server/client hydration mismatch. React recovers by discarding
+ * and rebuilding the whole tree client-side, which was swallowing real user
+ * interactions (e.g. an "Add to cart" click) that happened in that window.
+ *
+ * The fix is the pattern Next.js documents for this exact situation: the
+ * actual Server Component (app/layout.tsx) renders Navbar/Footer/
+ * CartSyncBanner itself and passes the already-rendered elements down as
+ * props, so their module code only ever runs on the server.
+ */
+export function AppShell({
+  children,
+  navbar,
+  footer,
+  cartSyncBanner,
+}: {
+  children: React.ReactNode;
+  navbar: React.ReactNode;
+  footer: React.ReactNode;
+  cartSyncBanner: React.ReactNode;
+}) {
   const pathname = usePathname();
   const initCart = useCartStore((s) => s.initCart);
   const initWishlist = useWishlistStore((s) => s.initWishlist);
@@ -23,12 +46,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Navbar />
+      {navbar}
       <main className="flex-1" style={{ paddingTop: "var(--nav-height)" }}>
         {children}
       </main>
-      <Footer />
-      <CartSyncBanner />
+      {footer}
+      {cartSyncBanner}
     </>
   );
 }
