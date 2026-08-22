@@ -3,6 +3,7 @@ import { storeConfig } from "@/config/storeConfig";
 import { rememberOrderForShipment } from "@/lib/shiprocket-store";
 import { splitName } from "@/lib/medusa-order";
 import { applyRateLimit } from "@/lib/rateLimit";
+import { sendOpsAlert } from "@/lib/ops-alert";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 const MEDUSA_BASE = (
@@ -187,7 +188,7 @@ async function createShiprocketOrder(
 async function assignAwb(
   shipmentId: string,
   token: string
-): Promise<{ awbCode: string; courierName: string } | null> {
+): Promise<{ awbCode: string; courierName: string; failureReason?: undefined } | { awbCode?: undefined; courierName?: undefined; failureReason: string }> {
   try {
     const res = await fetch(`${SHIPROCKET_BASE}/courier/assign/awb`, {
       method: "POST",
@@ -202,21 +203,23 @@ async function assignAwb(
       // Not fatal, the shipment already exists in Shiprocket; a human can
       // still assign a courier from the dashboard. Common cause: an empty
       // Shiprocket wallet, confirmed to surface here as awb_assign_error.
-      console.error(
-        "[Shiprocket] assign/awb did not return an AWB for shipment", shipmentId,
-        ":", data.response?.data?.awb_assign_error ?? data.message
-      );
-      return null;
+      const reason = data.response?.data?.awb_assign_error ?? data.message ?? "no AWB returned";
+      console.error("[Shiprocket] assign/awb did not return an AWB for shipment", shipmentId, ":", reason);
+      return { failureReason: reason };
     }
     return { awbCode, courierName: courierName ?? "" };
   } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
     console.error("[Shiprocket] assign/awb network failure for shipment", shipmentId, ":", err);
-    return null;
+    return { failureReason: reason };
   }
 }
 
 /** Generate the printable shipping label PDF. Requires an AWB to already be assigned. */
-async function generateLabel(shipmentId: string, token: string): Promise<string | null> {
+async function generateLabel(
+  shipmentId: string,
+  token: string
+): Promise<{ labelUrl: string; failureReason?: undefined } | { labelUrl?: undefined; failureReason: string }> {
   try {
     const res = await fetch(`${SHIPROCKET_BASE}/courier/generate/label`, {
       method: "POST",
@@ -226,16 +229,15 @@ async function generateLabel(shipmentId: string, token: string): Promise<string 
     });
     const data = (await res.json()) as GenerateLabelResponse;
     if (!data.label_created || !data.label_url) {
-      console.error(
-        "[Shiprocket] generate/label failed for shipment", shipmentId,
-        ":", data.not_created?.[shipmentId] ?? data.response
-      );
-      return null;
+      const reason = data.not_created?.[shipmentId] ?? data.response ?? "label not created";
+      console.error("[Shiprocket] generate/label failed for shipment", shipmentId, ":", reason);
+      return { failureReason: reason };
     }
-    return data.label_url;
+    return { labelUrl: data.label_url };
   } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
     console.error("[Shiprocket] generate/label network failure for shipment", shipmentId, ":", err);
-    return null;
+    return { failureReason: reason };
   }
 }
 
@@ -247,7 +249,10 @@ async function generateLabel(shipmentId: string, token: string): Promise<string 
  * pickup can always be requested manually from the Shiprocket dashboard as
  * a fallback.
  */
-async function generatePickup(shipmentId: string, token: string): Promise<boolean> {
+async function generatePickup(
+  shipmentId: string,
+  token: string
+): Promise<{ scheduled: true; failureReason?: undefined } | { scheduled: false; failureReason: string }> {
   try {
     const res = await fetch(`${SHIPROCKET_BASE}/courier/generate/pickup`, {
       method: "POST",
@@ -257,13 +262,15 @@ async function generatePickup(shipmentId: string, token: string): Promise<boolea
     });
     const data = (await res.json()) as GeneratePickupResponse;
     if (!data.pickup_status) {
-      console.error("[Shiprocket] generate/pickup failed for shipment", shipmentId, ":", data.message);
-      return false;
+      const reason = data.message ?? "pickup not scheduled";
+      console.error("[Shiprocket] generate/pickup failed for shipment", shipmentId, ":", reason);
+      return { scheduled: false, failureReason: reason };
     }
-    return true;
+    return { scheduled: true };
   } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
     console.error("[Shiprocket] generate/pickup network failure for shipment", shipmentId, ":", err);
-    return false;
+    return { scheduled: false, failureReason: reason };
   }
 }
 
@@ -347,6 +354,14 @@ export async function POST(request: NextRequest) {
   );
 
   if (!srResponse || srResponse.status_code === undefined) {
+    // The most severe failure mode: no shipment record exists in Shiprocket
+    // at all. Worth an immediate alert rather than waiting to notice a
+    // customer's order never got a tracking number.
+    await sendOpsAlert(`Shiprocket order creation failed for ${eyraOrderRef}`, [
+      `Medusa order: ${medusaOrderId ?? "(not yet known)"}`,
+      `Shiprocket response: ${JSON.stringify(srResponse)?.slice(0, 300) ?? "no response"}`,
+      "No shipment exists yet. This order needs to be created manually in Shiprocket.",
+    ]);
     const result: CreateShipmentResult = {
       success: false,
       shipmentId: null,
@@ -363,6 +378,10 @@ export async function POST(request: NextRequest) {
   let courierName = srResponse.courier_name || null;
   let labelUrl: string | null = null;
   let pickupScheduled: boolean | undefined;
+  // Collected across the pipeline and sent as one alert at the end, rather
+  // than one email per failed step, since a single root cause (e.g. an
+  // empty Shiprocket wallet) tends to cascade into several of these at once.
+  const failures: string[] = [];
 
   // orders/create/adhoc only returns an AWB inline when the Shiprocket
   // account has auto-assign-courier enabled. Confirmed live against this
@@ -375,23 +394,43 @@ export async function POST(request: NextRequest) {
   if (shipmentId) {
     if (!awbCode) {
       const assigned = await assignAwb(shipmentId, token);
-      if (assigned) {
+      if (assigned.awbCode) {
         awbCode = assigned.awbCode;
         courierName = assigned.courierName || courierName;
+      } else {
+        failures.push(`Courier/AWB assignment failed: ${assigned.failureReason}`);
       }
     }
 
     if (awbCode) {
-      labelUrl = await generateLabel(shipmentId, token);
+      const label = await generateLabel(shipmentId, token);
+      if (label.labelUrl) {
+        labelUrl = label.labelUrl;
+      } else {
+        failures.push(`Label generation failed: ${label.failureReason}`);
+      }
+
       // Unlike AWB assignment and label generation, this requests an actual
       // physical pickup with the courier, one per order rather than a
       // single batched pickup for the day's orders. Kept behind an env var
       // (default on) so that can be turned off without a code change if
       // per-order pickup requests turn out to be the wrong operational fit.
       if (process.env.SHIPROCKET_AUTO_PICKUP !== "false") {
-        pickupScheduled = await generatePickup(shipmentId, token);
+        const pickup = await generatePickup(shipmentId, token);
+        pickupScheduled = pickup.scheduled;
+        if (!pickup.scheduled) failures.push(`Pickup request failed: ${pickup.failureReason}`);
       }
+    } else {
+      failures.push("Label and pickup skipped: no AWB was assigned.");
     }
+  }
+
+  if (failures.length > 0) {
+    await sendOpsAlert(`Shipping needs manual attention: order ${eyraOrderRef}`, [
+      `Medusa order: ${medusaOrderId ?? "(not linked)"}`,
+      `Shiprocket shipment: ${shipmentId ?? "(none)"}`,
+      ...failures,
+    ]);
   }
 
   // Persist tracking data back to Medusa order metadata.
@@ -407,6 +446,15 @@ export async function POST(request: NextRequest) {
     // The Shiprocket status webhook only echoes back eyraOrderRef, not the
     // Medusa order ID, remember the mapping so it can resolve the order.
     await rememberOrderForShipment(eyraOrderRef, medusaOrderId);
+
+    if (persistWarning) {
+      await sendOpsAlert(`Shipment created but Medusa wasn't updated: order ${eyraOrderRef}`, [
+        `Medusa order: ${medusaOrderId}`,
+        `Shiprocket shipment: ${shipmentId}, AWB: ${awbCode ?? "(none)"}`,
+        persistWarning,
+        "The shipment and label exist in Shiprocket, but the order in Medusa doesn't show it. Update the order metadata manually.",
+      ]);
+    }
   }
 
   const result: CreateShipmentResult = {
