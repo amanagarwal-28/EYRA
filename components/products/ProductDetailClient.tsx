@@ -391,7 +391,7 @@ export function ProductDetailClient({
                     }
                     router.push("/checkout");
                   }}
-                  className="flex-1 flex items-center justify-center px-8 py-[14px] bg-black text-white font-sans font-medium text-[18px] leading-[20px] rounded-full hover:bg-[#1a1a1a] transition-colors duration-200"
+                  className="flex-1 flex items-center justify-center px-4 sm:px-8 py-3 sm:py-[14px] bg-black text-white font-sans font-medium text-[15px] sm:text-[18px] leading-[20px] whitespace-nowrap rounded-full hover:bg-[#1a1a1a] transition-colors duration-200"
                   style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
                 >
                   Buy now
@@ -403,7 +403,7 @@ export function ProductDetailClient({
                     if (variantId === null) return; // ring with no size picked
                     addToCart(product, product.type === "ring" ? selectedSize : null, variantId);
                   }}
-                  className={`flex-1 flex items-center justify-center px-8 py-[14px] font-sans font-medium text-[18px] leading-[20px] rounded-full border transition-colors duration-200 ${
+                  className={`flex-1 flex items-center justify-center px-4 sm:px-8 py-3 sm:py-[14px] font-sans font-medium text-[15px] sm:text-[18px] leading-[20px] whitespace-nowrap rounded-full border transition-colors duration-200 ${
                     inCart
                       ? "bg-black text-white border-black"
                       : "bg-white text-black border-[#DBDBDB] hover:border-black"

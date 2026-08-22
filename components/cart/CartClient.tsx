@@ -147,67 +147,78 @@ export function CartClient() {
               );
 
               return (
-                <div key={key} className="flex gap-4 p-4 bg-white border border-[#E1E1E1] rounded-2xl">
-                  {/* Checkbox */}
-                  <button
-                    onClick={() => toggleCheck(key)}
-                    aria-label={checked ? "Deselect item" : "Select item"}
-                    className={`mt-1 w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors duration-150 ${
-                      checked ? "bg-black border-black" : "border-[#CFCFCF] hover:border-black"
-                    }`}
-                  >
-                    {checked && (
-                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
-                        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </button>
-
-                  {/* Product image */}
-                  <div
-                    className="relative w-[79px] h-[79px] flex-shrink-0 rounded-2xl overflow-hidden bg-[#F9F9F9]"
-                    style={{ border: "1px solid #E1E1E1", boxShadow: "0px 2px 8px rgba(0,0,0,0.06)" }}
-                  >
-                    <Image
-                      src={item.product.images[0]}
-                      alt={item.product.name}
-                      fill
-                      className="object-contain p-2"
-                      sizes="79px"
-                    />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <p className="font-sans font-normal text-[18px] leading-[27px] text-black truncate">
-                      {item.product.name}
-                    </p>
-                    {item.size && (
-                      <p className="font-sans font-normal text-[13px] text-[#909090]">Size: {item.size}</p>
-                    )}
-
-                    {/* Price row */}
-                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <span className="font-sans font-semibold text-[18px] leading-[27px] text-black">
-                        ₹{item.product.price.toLocaleString("en-IN")}
-                      </span>
-                      <span className="font-sans font-normal text-[15px] text-[#AAAAAA] line-through">
-                        ₹{item.product.originalPrice.toLocaleString("en-IN")}
-                      </span>
-                      {discountPct > 0 && (
-                        <span className="font-sans font-normal text-[13px] text-black">
-                          {discountPct}% OFF
-                        </span>
+                // Below sm: the checkbox+image+info+qty-stepper+remove row's
+                // fixed-width elements alone need ~250px, more than fits
+                // beside a readable info column at a 375px viewport, so the
+                // qty-stepper/remove group drops to its own row underneath
+                // instead of squeezing beside the product info.
+                <div key={key} className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-4 bg-white border border-[#E1E1E1] rounded-2xl">
+                  <div className="flex gap-4">
+                    {/* Checkbox */}
+                    <button
+                      onClick={() => toggleCheck(key)}
+                      aria-label={checked ? "Deselect item" : "Select item"}
+                      className={`mt-1 w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors duration-150 ${
+                        checked ? "bg-black border-black" : "border-[#CFCFCF] hover:border-black"
+                      }`}
+                    >
+                      {checked && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       )}
+                    </button>
+
+                    {/* Product image */}
+                    <div
+                      className="relative w-[79px] h-[79px] flex-shrink-0 rounded-2xl overflow-hidden bg-[#F9F9F9]"
+                      style={{ border: "1px solid #E1E1E1", boxShadow: "0px 2px 8px rgba(0,0,0,0.06)" }}
+                    >
+                      <Image
+                        src={item.product.images[0]}
+                        alt={item.product.name}
+                        fill
+                        className="object-contain p-2"
+                        sizes="79px"
+                      />
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <p className="font-sans font-normal text-[18px] leading-[27px] text-black truncate">
+                        {item.product.name}
+                      </p>
+                      {item.size && (
+                        <p className="font-sans font-normal text-[13px] text-[#909090]">Size: {item.size}</p>
+                      )}
+
+                      {/* Price row */}
+                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                        <span className="font-sans font-semibold text-[18px] leading-[27px] text-black">
+                          ₹{item.product.price.toLocaleString("en-IN")}
+                        </span>
+                        <span className="font-sans font-normal text-[15px] text-[#AAAAAA] line-through">
+                          ₹{item.product.originalPrice.toLocaleString("en-IN")}
+                        </span>
+                        {discountPct > 0 && (
+                          <span className="font-sans font-normal text-[13px] text-black">
+                            {discountPct}% OFF
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Right: qty stepper + remove */}
-                  <div className="flex flex-col items-end justify-between gap-2 flex-shrink-0">
+                  {/* Qty stepper + remove. DOM order matches the original
+                      desktop layout (remove above, stepper below via
+                      justify-between); order-last on mobile just moves remove
+                      to the trailing end of the row instead, a more familiar
+                      placement for a destructive action than leading it. */}
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-end sm:justify-between gap-3 sm:gap-2 flex-shrink-0">
                     <button
                       aria-label="Remove item"
                       onClick={() => removeFromCart(item.product.id, item.size)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#FFF0F0] transition-colors duration-200"
+                      className="order-last sm:order-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#FFF0F0] transition-colors duration-200"
                     >
                       <TrashIcon />
                     </button>

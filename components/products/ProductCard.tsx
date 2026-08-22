@@ -88,7 +88,7 @@ export function ProductCard({ product }: { product: Product }) {
             }
             if (!inCart) addToCart(product, null, product.variantId);
           }}
-          className={`w-full max-w-[310px] flex items-center justify-center px-8 py-[14px] font-sans font-medium text-[18px] leading-[20px] rounded-full transition-colors duration-200 ${inCart
+          className={`w-full max-w-[310px] flex items-center justify-center px-4 sm:px-8 py-3 sm:py-[14px] font-sans font-medium text-[14px] sm:text-[18px] leading-[20px] whitespace-nowrap rounded-full transition-colors duration-200 ${inCart
               ? "bg-black text-white"
               : "bg-black text-white hover:bg-[#1a1a1a]"
             }`}

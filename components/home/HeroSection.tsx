@@ -1,8 +1,5 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-
 export function HeroSection() {
   return (
     <section className="bg-white">
@@ -41,19 +38,23 @@ export function HeroSection() {
           {/* Dark gradient overlay, bottom only, preserves image */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
 
-          {/* Left caption */}
-          <div className="absolute bottom-[28%] left-6 lg:left-16 max-w-[220px] lg:max-w-[260px]">
-            <p className="text-white text-[0.78rem] lg:text-[0.88rem] font-light leading-relaxed tracking-[0.02em]">
-              Inspired by timeless artistry and crafted to become a part of your everyday identity.
-            </p>
-          </div>
-
-          {/* Right caption */}
-          <div className="absolute top-[40%] right-6 lg:right-16 max-w-[180px] lg:max-w-[220px]">
-            <p className="text-white text-[0.78rem] lg:text-[0.88rem] font-light leading-relaxed tracking-[0.02em]">
-              Crafted in premium 925 sterling silver with a timeless finish designed for everyday elegance.
-            </p>
-          </div>
+          {/*
+            No live caption overlay here on purpose: /images/Hero-bg.png
+            already has both captions (plus their connector-line/dot
+            treatment) composited into the image itself. This component used
+            to ALSO render its own live DOM captions in roughly the same
+            spots, which duplicated the image's baked-in text. On desktop the
+            two happened to nearly coincide, so it read as a slightly bold
+            single caption and went unnoticed; on mobile object-cover crops
+            the same 2472x1366 source to a much narrower window, and the
+            live captions' relative positions no longer lined up with where
+            the baked-in ones actually landed, so mobile showed two
+            different, overlapping texts. Removing the live duplicate is the
+            fix, not repositioning it, since the image's own text is the
+            "real" caption. If this poster is ever swapped for a real video
+            with no baked-in text, captions will need to be reintroduced as
+            live DOM elements again at that point.
+          */}
 
           {/* Pagination dots */}
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">

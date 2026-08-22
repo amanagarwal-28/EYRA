@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 
 /**
@@ -8,6 +9,15 @@ import { ChevronDown } from "lucide-react";
  * or Escape. No positioning library is installed, so the panel is always
  * anchored left with a fixed min-width, which is enough for short filter
  * lists but not general-purpose menu placement.
+ *
+ * The panel renders through a portal into document.body rather than as a
+ * normal child. Its original position (a plain absolute div inside the
+ * trigger's wrapper) got silently clipped whenever an ancestor set
+ * overflow-x, e.g. a horizontally scrolling filter bar, since the CSS
+ * overflow spec makes overflow-x: auto also imply a non-visible overflow-y
+ * unless overflow-y is set separately, and that cuts off anything
+ * absolutely positioned outside the container's own height regardless of
+ * z-index. Portaling out of that ancestor sidesteps the clipping entirely.
  */
 export function Dropdown({
   label,
@@ -20,28 +30,60 @@ export function Dropdown({
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const PANEL_WIDTH = 240;
+  const VIEWPORT_MARGIN = 12;
+
+  function updateCoords() {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Clamp so the panel can't run past the right edge, which matters most
+    // for the rightmost trigger in a horizontally scrolling row, previously
+    // masked by that row's own overflow clipping the panel entirely.
+    const maxLeft = window.innerWidth - PANEL_WIDTH - VIEWPORT_MARGIN;
+    setCoords({ top: rect.bottom + 8, left: Math.min(rect.left, Math.max(VIEWPORT_MARGIN, maxLeft)) });
+  }
 
   useEffect(() => {
     if (!open) return;
+    updateCoords();
 
     function onPointerDown(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        panelRef.current && !panelRef.current.contains(target)
+      ) {
+        setOpen(false);
+      }
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    // Keep the portaled panel anchored to the trigger through scrolling
+    // (window or the filter bar's own horizontal scroll) and resizing.
+    function onReposition() {
+      updateCoords();
+    }
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", onReposition, true);
+    window.addEventListener("resize", onReposition);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", onReposition);
     };
   }, [open]);
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="true"
@@ -62,14 +104,18 @@ export function Dropdown({
         />
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          className="absolute left-0 top-[calc(100%+8px)] z-30 min-w-[240px] bg-white border border-[#CFCFCF] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)] p-5"
-        >
-          {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            role="menu"
+            className="fixed z-30 min-w-[240px] bg-white border border-[#CFCFCF] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.08)] p-5"
+            style={{ top: coords.top, left: coords.left }}
+          >
+            {children(() => setOpen(false))}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }

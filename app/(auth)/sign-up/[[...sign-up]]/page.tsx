@@ -104,7 +104,7 @@ export default function SignUpPage() {
       <AuthLeft />
 
       {/* Right panel */}
-      <div className="flex-1 flex flex-col justify-between min-h-screen px-8 lg:px-[62px] py-9">
+      <div className="flex-1 min-w-0 flex flex-col justify-between min-h-screen px-8 lg:px-[62px] py-9">
         {/* Back button */}
         <div>
           <button
