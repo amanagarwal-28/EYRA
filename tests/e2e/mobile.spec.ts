@@ -82,4 +82,32 @@ test.describe("mobile viewport", () => {
     await firstCard.getByRole("button", { name: "Select size" }).click();
     await expect(page).toHaveURL(/\/products\/[^/]+$/);
   });
+
+  test("filter pills stay single-line and the row scrolls instead of wrapping, even with every pill active", async ({ page }) => {
+    // Regression test: the Dropdown trigger button had no shrink-0, so once
+    // "Clear all" joined the row (any filter or search active) there wasn't
+    // room left for every pill at its natural width. Flex's default
+    // flex-shrink: 1 let "Sort by" shrink below its label's width instead of
+    // the already-overflow-x-auto row simply extending and scrolling, and
+    // the label wrapped to two lines, taller than the pills beside it.
+    await page.goto("/products");
+    await page.getByRole("button", { name: "Type" }).click();
+    await page.getByRole("menu").getByText("Rings", { exact: true }).click();
+    await page.getByRole("menu").getByText("Chains", { exact: true }).click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Price" }).click();
+    await page.getByRole("menu").getByText("Under", { exact: false }).click();
+    await page.waitForTimeout(200);
+
+    const sortPill = page.getByRole("button", { name: /^Sort by$/ });
+    await expect(sortPill).toBeVisible();
+    const box = await sortPill.boundingBox();
+    // A single-line pill at this font/padding is ~43px tall (py-2.5 + one
+    // 21px line); a wrapped "Sort / by" pill measured ~64px, two lines plus
+    // the same padding. 55 cleanly separates the two.
+    expect(box!.height).toBeLessThan(55);
+
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(375 + 2);
+  });
 });

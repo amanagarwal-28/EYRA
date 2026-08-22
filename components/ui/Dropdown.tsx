@@ -89,7 +89,7 @@ export function Dropdown({
         aria-haspopup="true"
         aria-expanded={open}
         className={[
-          "flex items-center gap-2 font-sans font-normal text-[14px] leading-[21px] px-4 py-2.5 rounded-full border transition-colors duration-200",
+          "flex items-center gap-2 shrink-0 whitespace-nowrap font-sans font-normal text-[14px] leading-[21px] px-4 py-2.5 rounded-full border transition-colors duration-200",
           open
             ? "border-black text-black"
             : "border-[#CFCFCF] text-[#3D3D3D] hover:border-black hover:text-black",
