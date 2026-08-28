@@ -7,6 +7,7 @@ import type { DetailProduct } from "@/lib/products";
 import { useCartStore, useWishlistStore } from "@/store/useStore";
 import { SIZE_CHART } from "@/lib/sizing";
 import { usePincodeServiceability } from "@/lib/hooks/usePincodeServiceability";
+import { formatDeliveryRange } from "@/lib/delivery-date";
 
 /* ── Inline SVG icons ────────────────────────────── */
 
@@ -458,7 +459,7 @@ export function ProductDetailClient({
                 {pincodeCheck.status === "success" && pincodeCheck.result && (
                   <p className="font-sans font-normal text-[13px] leading-[20px] text-[#626262]">
                     {pincodeCheck.result.serviceable
-                      ? `Delivery available! Estimated arrival in ${pincodeCheck.result.estimatedDays}–${pincodeCheck.result.estimatedDays + 1} business days${pincodeCheck.result.availablePaymentMethods.includes("cod") ? ", cash on delivery available" : ", prepaid only"}.`
+                      ? `Delivery available! Arriving ${formatDeliveryRange(pincodeCheck.result.estimatedDays, pincodeCheck.result.estimatedDays + 1)}${pincodeCheck.result.availablePaymentMethods.includes("cod") ? ", cash on delivery available" : ", prepaid only"}.`
                       : "Sorry, we don't currently deliver to this pincode."}
                   </p>
                 )}

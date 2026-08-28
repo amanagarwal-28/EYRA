@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { usePincodeServiceability } from "@/lib/hooks/usePincodeServiceability";
+import { formatDeliveryRange } from "@/lib/delivery-date";
 
 /**
  * Compact "check delivery to your pincode" trigger for the homepage's top
@@ -64,7 +65,7 @@ export function DeliveryCheckWidget() {
               {pincodeCheck.result.serviceable ? (
                 <>
                   <span className="text-[#3D7A1A] font-medium">Delivery available.</span>{" "}
-                  Estimated arrival in {pincodeCheck.result.estimatedDays}–{pincodeCheck.result.estimatedDays + 1} business days
+                  Arriving {formatDeliveryRange(pincodeCheck.result.estimatedDays, pincodeCheck.result.estimatedDays + 1)}
                   {pincodeCheck.result.availablePaymentMethods.includes("cod")
                     ? ", cash on delivery available."
                     : ", prepaid only."}

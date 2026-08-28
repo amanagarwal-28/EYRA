@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useCartStore } from "@/store/useStore";
 import type { CartItem } from "@/store/useStore";
+import { estimatedDeliveryDate, formatDeliveryDateShort } from "@/lib/delivery-date";
 
 const INDIAN_STATES = [
   "Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh",
@@ -303,7 +304,7 @@ function ShippingStep({
                 </span>
                 {serviceability.estimatedDays > 0 && (
                   <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#F7F7F7] border border-[#E1E1E1] font-sans text-[11px] text-[#626262]">
-                    Est. {serviceability.estimatedDays} {serviceability.estimatedDays === 1 ? "day" : "days"}
+                    Est. by {formatDeliveryDateShort(estimatedDeliveryDate(serviceability.estimatedDays))}
                   </span>
                 )}
                 {serviceability.availablePaymentMethods.includes("cod") && (
@@ -526,7 +527,7 @@ function PaymentStep({
             <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
           </svg>
           <p className="font-sans text-[12px] text-[#3D7A1A]">
-            Estimated delivery in <strong>{serviceability.estimatedDays} {serviceability.estimatedDays === 1 ? "day" : "days"}</strong> to {shippingForm.pincode}
+            Estimated delivery by <strong>{formatDeliveryDateShort(estimatedDeliveryDate(serviceability.estimatedDays))}</strong> to {shippingForm.pincode}
           </p>
         </div>
       )}
