@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { DetailProduct } from "@/lib/products";
 import { useCartStore, useWishlistStore } from "@/store/useStore";
 import { SIZE_CHART } from "@/lib/sizing";
+import { usePincodeServiceability } from "@/lib/hooks/usePincodeServiceability";
 
 /* ── Inline SVG icons ────────────────────────────── */
 
@@ -115,7 +116,7 @@ export function ProductDetailClient({
   const [sizeRequiredError, setSizeRequiredError] = useState(false);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const [pincode, setPincode] = useState("");
-  const [pincodeResult, setPincodeResult] = useState("");
+  const pincodeCheck = usePincodeServiceability();
   const touchStartX = useRef<number>(0);
 
   const addToCart = useCartStore((s) => s.addToCart);
@@ -156,14 +157,6 @@ export function ProductDetailClient({
     }
   }
 
-  function handleCheckPincode() {
-    if (pincode.length !== 6) {
-      setPincodeResult("Please enter a valid 6-digit pincode.");
-      return;
-    }
-    const days = 3 + (parseInt(pincode[0]) % 3);
-    setPincodeResult(`Delivery available! Estimated arrival in ${days}–${days + 1} business days.`);
-  }
 
   const serviceItems = [
     { icon: <ReturnIcon />, label: `${policy.returnDays} Days Return` },
@@ -444,21 +437,29 @@ export function ProductDetailClient({
                     value={pincode}
                     onChange={(e) => {
                       setPincode(e.target.value.replace(/\D/g, "").slice(0, 6));
-                      setPincodeResult("");
+                      pincodeCheck.reset();
                     }}
                     className="flex-1 px-[18px] py-[12px] font-sans font-normal text-[16px] text-black placeholder:text-[#909090] bg-transparent outline-none"
                   />
                   <button
-                    onClick={handleCheckPincode}
-                    className="px-6 py-[12px] bg-black text-white font-sans font-normal text-[16px] rounded-[100px] hover:bg-[#1a1a1a] transition-colors duration-200 mr-px"
+                    onClick={() => pincodeCheck.check(pincode)}
+                    disabled={pincodeCheck.status === "loading"}
+                    className="px-6 py-[12px] bg-black text-white font-sans font-normal text-[16px] rounded-[100px] hover:bg-[#1a1a1a] disabled:opacity-60 transition-colors duration-200 mr-px"
                     style={{ boxShadow: "inset 0px 6px 10px rgba(211,211,211,0.3)" }}
                   >
-                    Check
+                    {pincodeCheck.status === "loading" ? "Checking…" : "Check"}
                   </button>
                 </div>
-                {pincodeResult && (
+                {pincodeCheck.status === "error" && (
+                  <p className="font-sans font-normal text-[13px] leading-[20px] text-[#D93025]">
+                    {pincodeCheck.error}
+                  </p>
+                )}
+                {pincodeCheck.status === "success" && pincodeCheck.result && (
                   <p className="font-sans font-normal text-[13px] leading-[20px] text-[#626262]">
-                    {pincodeResult}
+                    {pincodeCheck.result.serviceable
+                      ? `Delivery available! Estimated arrival in ${pincodeCheck.result.estimatedDays}–${pincodeCheck.result.estimatedDays + 1} business days${pincodeCheck.result.availablePaymentMethods.includes("cod") ? ", cash on delivery available" : ", prepaid only"}.`
+                      : "Sorry, we don't currently deliver to this pincode."}
                   </p>
                 )}
               </div>

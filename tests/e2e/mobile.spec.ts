@@ -110,4 +110,33 @@ test.describe("mobile viewport", () => {
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(scrollWidth).toBeLessThanOrEqual(375 + 2);
   });
+
+  test("homepage delivery-check panel stays within the viewport regardless of panel width", async ({ page }) => {
+    // Regression test: Dropdown's edge clamp hardcoded PANEL_WIDTH = 240,
+    // correct for the filter bar's checkbox lists but not for this widget's
+    // wider (260px) form. The clamp under-corrected by the difference and
+    // let the panel run off the right edge, invisible past the viewport
+    // even though it caused no page-level scroll (position: fixed content
+    // doesn't affect document.scrollWidth), so that check alone would not
+    // have caught it.
+    await page.goto("/");
+    await page.getByRole("button", { name: "Check Delivery" }).click();
+    await page.waitForTimeout(300);
+
+    const panel = page.getByRole("menu");
+    await expect(panel).toBeVisible();
+    const box = await panel.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+
+    // The panel grows taller once a result renders; the fix must hold then too.
+    await page.getByPlaceholder("6-digit pincode").fill("110001");
+    await page.getByRole("button", { name: "Check", exact: true }).click();
+    await page.waitForResponse((r) => r.url().includes("/api/shipping/serviceability"));
+    await page.waitForTimeout(300);
+    const boxAfter = await panel.boundingBox();
+    expect(boxAfter!.x).toBeGreaterThanOrEqual(0);
+    expect(boxAfter!.x + boxAfter!.width).toBeLessThanOrEqual(375);
+  });
 });

@@ -34,16 +34,23 @@ export function Dropdown({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const PANEL_WIDTH = 240;
+  const FALLBACK_PANEL_WIDTH = 240;
   const VIEWPORT_MARGIN = 12;
 
   function updateCoords() {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    // Clamp so the panel can't run past the right edge, which matters most
-    // for the rightmost trigger in a horizontally scrolling row, previously
-    // masked by that row's own overflow clipping the panel entirely.
-    const maxLeft = window.innerWidth - PANEL_WIDTH - VIEWPORT_MARGIN;
+    // Measured from the actual panel rather than a hardcoded constant: panel
+    // content varies per caller (the filter dropdowns' checkbox lists vs. the
+    // wider delivery-check form, 260px), and clamping with the wrong width
+    // either over-shifts a narrow panel or, worse, under-corrects a wide one
+    // and still lets it run off the right edge. panelRef is already mounted
+    // by the time this runs (refs attach during commit, before effects), so
+    // its rendered width is available on the very first call, not just
+    // subsequent repositions. Falls back to the old constant only for that
+    // unreachable-in-practice case where the ref somehow isn't there yet.
+    const panelWidth = panelRef.current?.getBoundingClientRect().width ?? FALLBACK_PANEL_WIDTH;
+    const maxLeft = window.innerWidth - panelWidth - VIEWPORT_MARGIN;
     setCoords({ top: rect.bottom + 8, left: Math.min(rect.left, Math.max(VIEWPORT_MARGIN, maxLeft)) });
   }
 

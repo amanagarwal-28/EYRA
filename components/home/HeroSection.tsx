@@ -1,13 +1,18 @@
 "use client";
 
+import { DeliveryCheckWidget } from "./DeliveryCheckWidget";
+
 export function HeroSection() {
   return (
     <section className="bg-white">
       {/* ── Announcement strip ───────────────────────── */}
       <div className="border-b border-cloud">
-        <p className="text-center py-3 text-[0.72rem] font-sans font-normal tracking-[0.22em] uppercase text-carbon">
-          Made to order&nbsp;&nbsp;|&nbsp;&nbsp;Crafted within 7–10 days
-        </p>
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-16 py-2.5 flex items-center justify-center gap-3 flex-wrap">
+          <p className="text-center text-[0.7rem] sm:text-[0.72rem] font-sans font-normal tracking-[0.16em] sm:tracking-[0.22em] uppercase text-carbon">
+            Made to order&nbsp;&nbsp;|&nbsp;&nbsp;Crafted within 7–10 days
+          </p>
+          <DeliveryCheckWidget />
+        </div>
       </div>
 
       {/* ── Display heading ──────────────────────────── */}
